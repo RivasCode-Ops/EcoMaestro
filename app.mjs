@@ -69,26 +69,44 @@ function onProjectSelectChange() {
   }
 }
 
-async function loadProjectsCatalog(refresh = false) {
-  const sel = document.getElementById('selProjeto');
-  sel.innerHTML = '<option value="">Carregando…</option>';
-  if (apiOnline()) {
-    const q = refresh ? '?refresh=1' : '';
-    const { error, data } = await apiFetch('/projects' + q);
-    if (!error && data?.projects) {
-      projectsCatalog = data.projects;
-      fillProjectSelect(data.projects, data.root);
-      return;
-    }
-  }
+function applyFallbackProjects(extraHint = '') {
   projectsCatalog = FALLBACK_PROJECTS.map((p) => ({
     ...p,
     folder_path: 'c:\\_PROJETOS\\' + p.id
   }));
   fillProjectSelect(projectsCatalog, 'c:\\_PROJETOS');
-  if (!apiOnline()) {
-    document.getElementById('projMeta').textContent += ' · lista fixa (inicie API :8771 para scan completo)';
+  const meta = document.getElementById('projMeta');
+  meta.textContent =
+    projectsCatalog.length +
+    ' projetos (lista fixa)' +
+    (extraHint ? ' · ' + extraHint : '') +
+    ' · use Atualizar após reiniciar a API';
+}
+
+async function loadProjectsCatalog(refresh = false) {
+  const sel = document.getElementById('selProjeto');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Carregando…</option>';
+
+  if (apiOnline()) {
+    const q = refresh ? '?refresh=1' : '';
+    const { error, data } = await apiFetch('/projects' + q);
+    if (!error && data?.projects?.length) {
+      projectsCatalog = data.projects;
+      fillProjectSelect(data.projects, data.root);
+      return;
+    }
+    const hint =
+      error === 404
+        ? 'API antiga — feche e rode Iniciar-EcoMaestro-API.bat de novo'
+        : error
+          ? 'erro ' + error + ' no scan'
+          : 'resposta vazia';
+    applyFallbackProjects(hint);
+    return;
   }
+
+  applyFallbackProjects('modo autônomo — inicie API :8771 para listar todas as pastas');
 }
 
 async function apiFetch(path, opts = {}) {
@@ -566,7 +584,7 @@ document.getElementById('statusSelect').addEventListener('change', (e) => patchS
 })();
 
 renderHist();
-loadProjectsCatalog(false);
+loadProjectsCatalog(false).catch(() => applyFallbackProjects('erro ao carregar'));
 if (apiOnline()) {
   loadApiDemands();
   loadPorts();
