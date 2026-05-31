@@ -36,6 +36,16 @@ Resolve documentação do app (genérico): primeiro arquivo existente entre `AGE
 
 Lista demandas salvas; com `project` filtra só aquela pasta em `_PROJETOS`.
 
+### `GET /api/demands/{id}/adequacao`
+
+**Orquestrador** — analisa alinhamento ao pedido (propósito) e adequação da execução (runs + payload + status).
+
+### `POST /api/orchestrate`
+
+Mesma análise de adequação **sem salvar** demanda (body igual ao POST `/api/demands`).
+
+Ver [ORQUESTRADOR-ADEQUACAO.md](ORQUESTRADOR-ADEQUACAO.md).
+
 **Body de análise (POST /api/demands):** use `project_folder` (nome da pasta) em vez de digitar GitHub; o servidor preenche o remote automaticamente.
 
 ### `GET /api/health`

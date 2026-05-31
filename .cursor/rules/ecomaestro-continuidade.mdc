@@ -17,10 +17,12 @@ alwaysApply: true
 2. Não reintroduzir `fs` em módulos importados pelo browser (`verify-links` já separado em `verify-links-node.mjs`).
 3. Não usar script inline que substitua a lista de projetos por 3 itens fixos.
 
-## Histórico
+## Histórico e orquestrador
 
 - `listDemands(limit, projectFolder)` — filtro `?project=` na API.
-- Após mudança na UI, validar em http://127.0.0.1:8771/ com Ctrl+F5 e projeto aleatório (ex. XAXA, FREEDOM).
+- **Adequação:** `lib/demand-orchestrator.mjs` — `GET /api/demands/{id}/adequacao` (pedido vs execução).
+- UI: bloco *Orquestrador — adequação ao pedido* após Analisar/Trabalhar.
+- Após mudança na UI, validar em http://127.0.0.1:8771/ com Ctrl+F5.
 
 ## Entrega
 

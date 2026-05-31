@@ -1,6 +1,7 @@
 import { analyzeDemand } from './lib/router.mjs';
 import { FALLBACK_PROJECTS } from './lib/projects-fallback.mjs';
 import { resolveHrefForUi } from './lib/eco-href.mjs';
+import { orchestrateAnalyzed, orchestrateRecord } from './lib/demand-orchestrator.mjs';
 
 const STORAGE = 'ecomaestro_demands_v2';
 const STORAGE_PROJECT = 'ecomaestro_last_project';
@@ -498,6 +499,68 @@ function renderReport(record, fromApi = false) {
   }
 
   renderRuns(record);
+  const orch = record.orchestration || orchestrateRecord(record);
+  renderOrchestration(orch);
+}
+
+const VERDICT_LABEL = {
+  adequado: 'Adequado — pedido e execução coerentes',
+  parcial: 'Parcial — ajustes recomendados',
+  plano_ok: 'Plano OK — execução ainda pendente',
+  desalinhado: 'Desalinhado — revise o pedido ou o intent'
+};
+
+function renderOrchestration(orch) {
+  const box = document.getElementById('orchestrationBox');
+  if (!orch || !box) return;
+  box.hidden = false;
+  const vEl = document.getElementById('orchVerdict');
+  const cls = 'orch-' + (orch.verdict || 'parcial');
+  vEl.className = cls;
+  vEl.textContent = VERDICT_LABEL[orch.verdict] || orch.verdict;
+  document.getElementById('orchSummary').textContent = orch.summary || '';
+  document.getElementById('orchScores').textContent =
+    'Pontuação geral: ' +
+    (orch.score_pct ?? '—') +
+    '% · Alinhamento ao pedido: ' +
+    (orch.alignment?.score_pct ?? '—') +
+    '% · Execução: ' +
+    (orch.execution?.score_pct ?? '—') +
+    '%';
+  const all = [...(orch.alignment?.checks || []), ...(orch.execution?.checks || [])];
+  document.getElementById('orchChecks').innerHTML = all
+    .map((c) => {
+      const icon = c.ok ? '✓' : c.severity === 'info' ? '○' : '✗';
+      const col = c.ok ? 'var(--accent2)' : c.severity === 'warn' ? 'var(--warn)' : '#f08080';
+      return (
+        '<li style="color:' +
+        col +
+        '"><strong>' +
+        icon +
+        ' ' +
+        esc(c.label) +
+        '</strong> — ' +
+        esc(c.detail) +
+        '</li>'
+      );
+    })
+    .join('');
+  document.getElementById('orchRecs').innerHTML = (orch.recommendations || [])
+    .map((r) => '<li>' + esc(r) + '</li>')
+    .join('');
+}
+
+async function refreshOrchestration() {
+  if (!currentRecord) return;
+  if (currentRecord.id && apiOnline()) {
+    const { error, data } = await apiFetch('/demands/' + currentRecord.id + '/adequacao');
+    if (!error && data) {
+      currentRecord.orchestration = data;
+      renderOrchestration(data);
+      return;
+    }
+  }
+  renderOrchestration(currentRecord.orchestration || orchestrateRecord(currentRecord));
 }
 
 function renderRuns(record) {
@@ -598,7 +661,10 @@ function renderLocal(analyzed) {
       cursor_kit: analyzed.report.cursor_kit,
       eco_overlaps: analyzed.report.eco_overlaps
     },
-    runs: analyzed.runs
+    runs: analyzed.runs,
+    payload_snapshot: analyzed.payload_snapshot,
+    plan: analyzed.plan,
+    orchestration: orchestrateAnalyzed(analyzed)
   };
   renderReport(currentRecord, false);
 }
@@ -783,6 +849,7 @@ function renderHist() {
 
 document.getElementById('btnAnalisar').addEventListener('click', analisar);
 document.getElementById('btnTrabalhar').addEventListener('click', () => trabalharProjeto());
+document.getElementById('btnVerificarAdequacao')?.addEventListener('click', () => refreshOrchestration());
 document.getElementById('btnCopiarPasta').addEventListener('click', () => copiarPastaProjeto());
 document.getElementById('selProjeto').addEventListener('dblclick', () => trabalharProjeto());
 document.getElementById('btnAtualizarProjetos').addEventListener('click', () => loadProjectsCatalog(true));

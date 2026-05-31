@@ -10,6 +10,7 @@ import { join, extname, normalize } from 'path';
 import { PROJETOS_ROOT } from './lib/project-setup.mjs';
 import { fileURLToPath } from 'url';
 import { analyzeDemand } from './lib/router.mjs';
+import { orchestrateAnalyzed, orchestrateRecord } from './lib/demand-orchestrator.mjs';
 import { scaffoldProject } from './lib/project-scaffold.mjs';
 import { scanProjetos, resolveProject } from './lib/projetos-scan.mjs';
 import { resolveProjectGuide } from './lib/project-doc.mjs';
@@ -206,7 +207,9 @@ async function handleApi(req, res, pathname) {
         project_folder,
         folder_path
       });
+      analyzed.orchestration = orchestrateAnalyzed(analyzed);
       const record = await store.createDemand(analyzed);
+      if (!record.orchestration) record.orchestration = analyzed.orchestration;
       send(res, 201, record);
     } catch (e) {
       const code = e.code === 'VALIDATION' ? 400 : 500;
@@ -237,13 +240,45 @@ async function handleApi(req, res, pathname) {
     return true;
   }
 
+  if (pathname === '/api/orchestrate' && req.method === 'POST') {
+    const body = await readBody(req);
+    if (body === null) {
+      send(res, 400, { error: 'JSON inválido' });
+      return true;
+    }
+    try {
+      const analyzed = analyzeDemand({
+        github_url: body.github_url || body.link || '',
+        description: body.description || body.desc || '',
+        project_folder: body.project_folder || body.folder || null,
+        folder_path: body.folder_path || null
+      });
+      send(res, 200, { ...orchestrateAnalyzed(analyzed), demand_preview: analyzed.demand });
+    } catch (e) {
+      const code = e.code === 'VALIDATION' ? 400 : 500;
+      send(res, code, { error: e.message });
+    }
+    return true;
+  }
+
+  const adequacaoMatch = pathname.match(/^\/api\/demands\/([^/]+)\/adequacao$/);
+  if (adequacaoMatch && req.method === 'GET') {
+    const record = await store.getDemand(adequacaoMatch[1]);
+    if (!record) send(res, 404, { error: 'Demanda não encontrada' });
+    else send(res, 200, orchestrateRecord(record));
+    return true;
+  }
+
   const match = pathname.match(/^\/api\/demands\/([^/]+)$/);
   if (match) {
     const id = match[1];
     if (req.method === 'GET') {
       const record = await store.getDemand(id);
       if (!record) send(res, 404, { error: 'Demanda não encontrada' });
-      else send(res, 200, record);
+      else {
+        if (!record.orchestration) record.orchestration = orchestrateRecord(record);
+        send(res, 200, record);
+      }
       return true;
     }
     if (req.method === 'PATCH') {

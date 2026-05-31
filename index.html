@@ -89,6 +89,9 @@
     .proj-actions .go{display:inline-block;padding:.45rem .75rem;border-radius:.45rem;background:var(--accent);color:#0a1020;font-weight:800;font-size:.78rem;text-decoration:none}
     .proj-actions .go:hover{filter:brightness(1.08)}
     #btnTrabalhar:disabled{opacity:.45;cursor:not-allowed}
+    .orch-adequado{color:var(--accent2)}
+    .orch-parcial,.orch-plano_ok{color:var(--warn)}
+    .orch-desalinhado{color:#f08080}
   </style>
 </head>
 <body>
@@ -172,6 +175,17 @@
         <div class="aplicadores" id="listaAplica"></div>
       </div>
       <p class="confianca" id="confianca"></p>
+      <div class="bloco setup-card" id="orchestrationBox" hidden style="border-color:rgba(124,156,255,.45)">
+        <h2>Orquestrador — adequação ao pedido</h2>
+        <p class="hint" id="orchSummary"></p>
+        <p style="margin:.5rem 0;font-size:1.1rem;font-weight:800" id="orchVerdict"></p>
+        <p class="hint" id="orchScores"></p>
+        <ul class="needs" id="orchChecks"></ul>
+        <ul class="needs" id="orchRecs" style="margin-top:.5rem"></ul>
+        <div class="btns" style="margin-top:.5rem">
+          <button type="button" class="ghost" id="btnVerificarAdequacao">Verificar adequação agora</button>
+        </div>
+      </div>
       <div class="toolbar" id="reportToolbar" hidden>
         <label for="statusSelect" class="hint" style="margin:0">Status</label>
         <select id="statusSelect" title="Status da demanda">
@@ -205,6 +219,7 @@
       <a href="https://github.com/RivasCode-Ops/workbench/blob/main/docs/GITHUB-INSPIRACOES-ECOSSISTEMA.md" target="_blank" rel="noopener">Ecossistema</a> ·
       <a href="docs/MODELO-CONDOMINIO.md">Modelo</a> ·
       <a href="docs/API.md">API</a> ·
+      <a href="docs/ORQUESTRADOR-ADEQUACAO.md">Orquestrador</a> ·
       <a href="https://github.com/RivasCode-Ops/EcoMaestro">Repo</a>
     </p>
   </div>
