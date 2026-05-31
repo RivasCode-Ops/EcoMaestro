@@ -4,10 +4,30 @@ import { resolveHrefForUi } from './lib/eco-href.mjs';
 
 const STORAGE = 'ecomaestro_demands_v2';
 const STORAGE_PROJECT = 'ecomaestro_last_project';
-const API_BASE = 'http://127.0.0.1:8771/api';
+const API_BASE =
+  typeof location !== 'undefined' && location.host
+    ? location.origin + '/api'
+    : 'http://127.0.0.1:8771/api';
 
 let currentRecord = null;
 let projectsCatalog = [];
+let projectsRoot = 'c:\\_PROJETOS';
+
+/** Moradores do eco não são pasta de trabalho do app — só no relatório após Analisar */
+const FERRAMENTAS_IDS = new Set([
+  'EcoMaestro',
+  'dlogica',
+  'workbench',
+  'max-coding',
+  'Cortana',
+  'COmniWS',
+  'PROMPT'
+]);
+
+function projectKind(p) {
+  if (p.kind === 'produto' || p.kind === 'ferramenta') return p.kind;
+  return FERRAMENTAS_IDS.has(p.id) ? 'ferramenta' : 'produto';
+}
 
 function esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -33,28 +53,64 @@ function getSelectedProject() {
   return projectsCatalog.find((p) => p.id === id) || null;
 }
 
+function sortProdutos(prod, lastId) {
+  const pin = [lastId, 'FREEDOM'].filter(Boolean);
+  return [...prod].sort((a, b) => {
+    const ai = pin.indexOf(a.id);
+    const bi = pin.indexOf(b.id);
+    if (ai >= 0 && bi >= 0) return ai - bi;
+    if (ai >= 0) return -1;
+    if (bi >= 0) return 1;
+    return a.name.localeCompare(b.name, 'pt-BR');
+  });
+}
+
 function fillProjectSelect(projects, root) {
   const sel = document.getElementById('selProjeto');
   const last = localStorage.getItem(STORAGE_PROJECT) || '';
-  const prod = projects.filter((p) => p.kind === 'produto');
-  const ferr = projects.filter((p) => p.kind === 'ferramenta');
-  let html = '<option value="__new__">— Projeto novo (ainda sem pasta) —</option>';
+  const filter = (document.getElementById('filtroProjeto')?.value || '').trim().toLowerCase();
+  const normalized = projects.map((p) => ({ ...p, kind: projectKind(p) }));
+  let prod = sortProdutos(
+    normalized.filter((p) => p.kind === 'produto'),
+    last && last !== '__new__' ? last : ''
+  );
+  let ferr = normalized.filter((p) => p.kind === 'ferramenta');
+  if (filter) {
+    const match = (p) =>
+      p.name.toLowerCase().includes(filter) || (p.label || '').toLowerCase().includes(filter);
+    prod = prod.filter(match);
+    ferr = ferr.filter(match);
+  }
+
+  let html = '';
   if (prod.length) {
-    html += '<optgroup label="Produtos">';
-    html += prod.map((p) => '<option value="' + esc(p.id) + '">' + esc(p.label || p.name) + '</option>').join('');
+    html += '<optgroup label="Seus projetos — trabalhe aqui">';
+    html += prod
+      .map((p) => '<option value="' + esc(p.id) + '">' + esc(p.label || p.name) + '</option>')
+      .join('');
     html += '</optgroup>';
   }
-  if (ferr.length) {
-    html += '<optgroup label="Ferramentas ECO">';
-    html += ferr.map((p) => '<option value="' + esc(p.id) + '">' + esc(p.label || p.name) + '</option>').join('');
-    html += '</optgroup>';
+  html += '<option value="__new__">+ Criar projeto novo (ainda sem pasta)</option>';
+  if (!prod.length && !ferr.length) {
+    html = '<option value="">Nenhuma pasta encontrada</option>';
   }
   sel.innerHTML = html;
-  if (last && [...sel.options].some((o) => o.value === last)) sel.value = last;
-  else if (prod.some((p) => p.id === 'FREEDOM')) sel.value = 'FREEDOM';
+
+  const pick =
+    last && last !== '__new__' && prod.some((p) => p.id === last)
+      ? last
+      : prod[0]?.id || '__new__';
+  sel.value = [...sel.options].some((o) => o.value === pick) ? pick : prod[0]?.id || '__new__';
+
+  const nProd = normalized.filter((p) => p.kind === 'produto').length;
   document.getElementById('projMeta').textContent =
-    (root ? 'Raiz: ' + root + ' · ' : '') + projects.length + ' pastas · GitHub automático quando houver git';
+    (root ? 'Raiz: ' + root + ' · ' : '') +
+    nProd +
+    ' apps para trabalhar' +
+    (filter ? ' (filtro ativo)' : '') +
+    ' · dLogica/workbench aparecem no relatório após Analisar';
   onProjectSelectChange();
+  window.__ecoMaestroProjectsReady = true;
 }
 
 function onProjectSelectChange() {
@@ -95,15 +151,16 @@ function applyFallbackProjects(extraHint = '') {
 async function loadProjectsCatalog(refresh = false) {
   const sel = document.getElementById('selProjeto');
   if (!sel) return;
-  sel.innerHTML = '<option value="">Carregando…</option>';
+  sel.innerHTML = '<option value="">Carregando pastas (pode levar ~15s)…</option>';
 
   const q = refresh ? '?refresh=1' : '';
   const { error, data } = await apiFetch('/projects' + q);
   if (!error && data?.projects?.length) {
-    projectsCatalog = data.projects;
-    fillProjectSelect(data.projects, data.root);
-    return;
-  }
+      projectsCatalog = data.projects;
+      projectsRoot = data.root || projectsRoot;
+      fillProjectSelect(data.projects, projectsRoot);
+      return;
+    }
 
   let hint = 'lista fixa';
   if (isFileMode()) {
@@ -494,7 +551,10 @@ function buildAnalyzePayload() {
   const proj = getSelectedProject();
   const desc = document.getElementById('desc').value.trim();
   const link = document.getElementById('linkGh').value.trim();
-  if (!proj?.id && !desc) return null;
+  if (!proj?.id) return null;
+  if (proj.id === '__new__' && !desc) return null;
+  if (proj.kind === 'ferramenta' && !desc) return null;
+  if (!desc && !link) return null;
   return {
     github_url: link,
     description: desc,
@@ -506,7 +566,12 @@ function buildAnalyzePayload() {
 async function analisar() {
   const payload = buildAnalyzePayload();
   if (!payload) {
-    alert('Escolha um projeto (ou "projeto novo") e descreva a demanda.');
+    const p = getSelectedProject();
+    if (p?.kind === 'ferramenta') {
+      alert('Para morador do condomínio (workbench, dLogica…), descreva a demanda.\nPara trabalhar no FREEDOM ou outro app, escolha na seção "Seus projetos".');
+    } else {
+      alert('Escolha um projeto em "Seus projetos" (ex. FREEDOM) e descreva o que quer fazer.');
+    }
     return;
   }
 
@@ -589,6 +654,9 @@ function renderHist() {
 
 document.getElementById('btnAnalisar').addEventListener('click', analisar);
 document.getElementById('btnAtualizarProjetos').addEventListener('click', () => loadProjectsCatalog(true));
+document.getElementById('filtroProjeto')?.addEventListener('input', () => {
+  if (projectsCatalog.length) fillProjectSelect(projectsCatalog, projectsRoot);
+});
 document.getElementById('selProjeto').addEventListener('change', onProjectSelectChange);
 document.getElementById('btnLimpar').addEventListener('click', () => {
   document.getElementById('desc').value = '';
@@ -614,8 +682,9 @@ document.getElementById('statusSelect').addEventListener('change', (e) => patchS
     el.hidden = false;
     const span = el.querySelector('span:last-child');
     if (onApi) {
+      el.classList.remove('autonomo');
       span.innerHTML =
-        '<strong>API ativa</strong> — demandas em <code>data/demands/</code> · runs · export JSON · portas do eco';
+        '<strong>API ativa (:8771)</strong> — lista completa de pastas em <code>_PROJETOS</code> · demandas salvas em <code>data/demands/</code>';
     } else if (fileMode) {
       span.innerHTML =
         '<strong>Modo autônomo</strong> — lista principal abaixo. Para <strong>todas</strong> as pastas: ' +

@@ -102,14 +102,15 @@
 
     <div class="card">
       <div class="field">
-        <label for="selProjeto">Projeto em c:\_PROJETOS</label>
-        <div class="row-select">
-          <select id="selProjeto" aria-label="Pasta do projeto">
+        <label for="filtroProjeto">Onde você vai trabalhar hoje</label>
+        <input id="filtroProjeto" type="search" placeholder="Buscar pasta (ex. FREEDOM, geogrowth)…" autocomplete="off" />
+        <div class="row-select" style="margin-top:.5rem">
+          <select id="selProjeto" aria-label="Pasta do projeto" size="8">
             <option value="">Carregando pastas…</option>
           </select>
           <button type="button" class="ghost" id="btnAtualizarProjetos" title="Reescanear pastas e remotes Git">Atualizar</button>
         </div>
-        <p class="hint" id="projMeta">Escolha o app ou ferramenta. GitHub preenchido automaticamente.</p>
+        <p class="hint" id="projMeta">Escolha <strong>seu app</strong> (FREEDOM, geogrowth…). Use <strong>http://127.0.0.1:8771/</strong> para ver todas as pastas.</p>
         <input id="linkGh" type="hidden" />
         <p class="hint" id="linkGhView" hidden></p>
       </div>
@@ -194,27 +195,5 @@
   </div>
 
   <script type="module" src="app.mjs"></script>
-  <script>
-    /* Se app.mjs falhar no file://, destrava o select após 3s */
-    setTimeout(function () {
-      var sel = document.getElementById('selProjeto');
-      if (!sel || sel.options.length !== 1) return;
-      var v = sel.options[0].value;
-      if (v !== '' && v !== '__none__') return;
-      var items = [
-        ['__new__', '— Projeto novo —'],
-        ['FREEDOM', 'FREEDOM'],
-        ['EcoMaestro', 'EcoMaestro'],
-        ['workbench', 'workbench'],
-        ['max-coding', 'max-coding'],
-        ['geogrowth', 'geogrowth']
-      ];
-      sel.innerHTML = items.map(function (x) {
-        return '<option value="' + x[0] + '">' + x[1] + '</option>';
-      }).join('');
-      var meta = document.getElementById('projMeta');
-      if (meta) meta.textContent = 'Lista mínima (recarregue a página ou use a API :8771)';
-    }, 3000);
-  </script>
 </body>
 </html>
