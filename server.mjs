@@ -26,7 +26,7 @@ import * as jsonStore from './lib/storage-json.mjs';
 import { guardRequest, assertRecordTenant, isProjetosPathAllowed, apiKeyRequired, getDefaultTenantId } from './lib/api-guard.mjs';
 import { enrichAnalyzed, onRunCompletedLearning } from './lib/enterprise-analyze.mjs';
 import { ensureRagLoaded, buildRagIndex, searchRag, loadRagIndex } from './lib/rag-store.mjs';
-import { ollamaAvailable } from './lib/llm-ollama.mjs';
+import { ollamaAvailable, ollamaStatus } from './lib/llm-ollama.mjs';
 import { auditLog } from './lib/audit-log.mjs';
 import { getWizardForResident, buildOutputPayloadFromWizard } from './lib/run-wizard.mjs';
 import { feedbackIntent, correctIntentForDemand } from './lib/learning-store.mjs';
@@ -160,7 +160,7 @@ async function handleApi(req, res, pathname) {
         api_key_required: apiKeyRequired(),
         tenant_default: getDefaultTenantId(),
         rag_chunks: rag.chunk_count || 0,
-        ollama: await ollamaAvailable()
+        ollama: (await ollamaStatus()).online
       }
     });
     return true;
@@ -168,12 +168,16 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === '/api/enterprise/status' && req.method === 'GET') {
     const rag = await loadRagIndex();
+    const ollama = await ollamaStatus();
     send(res, 200, {
       api_key_required: apiKeyRequired(),
       tenant_id: tenantId,
       rag_chunks: rag.chunk_count || 0,
-      ollama_online: await ollamaAvailable(),
-      llm_model: process.env.ECO_LLM_MODEL || 'llama3.2'
+      ollama_online: ollama.online,
+      ollama_models: ollama.models,
+      llm_model: ollama.model_used,
+      ollama_host: ollama.host,
+      ollama_error: ollama.error || null
     });
     return true;
   }

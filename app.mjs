@@ -1166,13 +1166,36 @@ async function copiarPacoteCursor() {
 }
 
 async function loadEnterpriseStatus() {
-  if (!apiOnline()) return;
-  const { data } = await apiFetch('/enterprise/status');
   const el = document.getElementById('enterpriseStatusChip');
-  if (!el || !data) return;
+  if (!el) return;
+  if (!apiOnline()) {
+    el.hidden = false;
+    el.textContent = 'Abra http://127.0.0.1:8771/ (Iniciar-EcoMaestro-API.bat) para RAG e Ollama';
+    return;
+  }
+  let data = null;
+  let err = null;
+  const r1 = await apiFetch('/enterprise/status');
+  if (!r1.error && r1.data) data = r1.data;
+  else {
+    err = r1.error;
+    const r2 = await apiFetch('/health');
+    if (!r2.error && r2.data?.enterprise) data = r2.data.enterprise;
+  }
   el.hidden = false;
-  el.textContent =
-    'Enterprise: RAG ' + (data.rag_chunks || 0) + ' · Ollama ' + (data.ollama_online ? 'on' : 'off');
+  if (!data) {
+    el.textContent =
+      err === 404
+        ? 'API antiga — feche a janela preta e rode Iniciar-EcoMaestro-API.bat de novo (git pull)'
+        : 'Status enterprise indisponível — reinicie a API';
+    return;
+  }
+  const rag = data.rag_chunks ?? 0;
+  const oll = data.ollama_online ? 'on' : 'off';
+  const model = data.llm_model ? ' (' + data.llm_model + ')' : '';
+  el.textContent = 'Enterprise: RAG ' + rag + ' · Ollama ' + oll + model;
+  const btn = document.getElementById('btnRefreshStatus');
+  if (btn) btn.hidden = false;
 }
 
 function saveEnterpriseSettings() {
@@ -1212,6 +1235,7 @@ document.getElementById('btnWizardSubmit')?.addEventListener('click', () => subm
 document.getElementById('btnWizardCancel')?.addEventListener('click', () => document.getElementById('ecoWizardModal')?.close());
 document.getElementById('btnSaveEnterprise')?.addEventListener('click', () => saveEnterpriseSettings());
 document.getElementById('btnReindexRag')?.addEventListener('click', () => reindexRag());
+document.getElementById('btnRefreshStatus')?.addEventListener('click', () => loadEnterpriseStatus());
 document.getElementById('btnIntentFeedback')?.addEventListener('click', () => submitIntentFeedback());
 const ecoTenantEl = document.getElementById('ecoTenantId');
 const ecoKeyEl = document.getElementById('ecoApiKey');
