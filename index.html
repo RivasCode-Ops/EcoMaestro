@@ -77,6 +77,9 @@
     .setup-card{border:1px solid rgba(94,224,184,.45);border-radius:.65rem;padding:.85rem;margin-bottom:1rem;background:rgba(94,224,184,.06)}
     .setup-card .go{display:inline-block;margin-top:0}
     .setup-card .btns{align-items:center}
+    .kit-links{gap:.35rem}
+    .kit-links .go{font-size:.72rem;padding:.3rem .55rem}
+    .kit-links .go.kit-start{box-shadow:0 0 0 1px var(--accent2)}
   </style>
 </head>
 <body>
@@ -126,8 +129,14 @@
         <h2>O que precisa</h2>
         <ul class="needs" id="listaPrecisa"></ul>
       </div>
+      <div class="bloco setup-card" id="cursorKitBox" hidden>
+        <h2 id="cursorKitTitle">Cursor — rules e coding</h2>
+        <p class="hint" id="cursorKitIntro"></p>
+        <div class="btns kit-links" id="cursorKitLinks"></div>
+      </div>
       <div class="bloco">
-        <h2>Quem aplica no condomínio</h2>
+        <h2>Quem aplica no condomínio (4 portas + extras)</h2>
+        <p class="hint" style="margin:-.25rem 0 .5rem">2 = <strong>workbench</strong> (governança) · 3 = <strong>Cursor</strong> (código) — links acima para prompts/rules</p>
         <div class="aplicadores" id="listaAplica"></div>
       </div>
       <p class="confianca" id="confianca"></p>

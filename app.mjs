@@ -23,6 +23,32 @@ async function apiFetch(path, opts = {}) {
   }
 }
 
+function renderCursorKit(kit) {
+  const box = document.getElementById('cursorKitBox');
+  if (!kit) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  document.getElementById('cursorKitTitle').textContent = kit.title;
+  document.getElementById('cursorKitIntro').textContent = kit.intro;
+  document.getElementById('cursorKitLinks').innerHTML = (kit.links || [])
+    .map((l) => {
+      const start = l.id === kit.start_with;
+      return (
+        '<a class="go' +
+        (start ? ' kit-start' : '') +
+        '" href="' +
+        esc(l.href) +
+        '" target="_blank" rel="noopener">' +
+        esc(l.label) +
+        (start ? ' ★' : '') +
+        '</a>'
+      );
+    })
+    .join('');
+}
+
 function renderSetup(setup, description) {
   const box = document.getElementById('setupBox');
   const msg = document.getElementById('setupMsg');
@@ -82,6 +108,7 @@ function renderReport(record, fromApi = false) {
   const suffix = rep.title_suffix || '';
   document.getElementById('tituloProjeto').textContent = d.title + suffix;
   renderSetup(rep.setup, d.description);
+  renderCursorKit(rep.cursor_kit);
   document.getElementById('listaPrecisa').innerHTML = (rep.needs || []).map((n) => '<li>' + esc(n) + '</li>').join('');
   document.getElementById('listaAplica').innerHTML = (rep.aplicadores || []).map((a) => {
     const go = a.href
@@ -222,7 +249,8 @@ function renderLocal(analyzed) {
     report: {
       ...analyzed.report,
       title_suffix: analyzed.report.title_suffix,
-      setup: analyzed.report.setup
+      setup: analyzed.report.setup,
+      cursor_kit: analyzed.report.cursor_kit
     },
     runs: analyzed.runs
   };
@@ -370,6 +398,7 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
   document.getElementById('desc').value = '';
   document.getElementById('relatorio').classList.remove('on');
   document.getElementById('setupBox').hidden = true;
+  document.getElementById('cursorKitBox').hidden = true;
   currentRecord = null;
 });
 document.getElementById('btnExport').addEventListener('click', exportJson);
