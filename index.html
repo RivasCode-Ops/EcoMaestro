@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EcoMaestro — condomínio ECO</title>
+  <style>
+    :root {
+      --bg:#0c0e14; --surface:#161b28; --card:#1c2436; --border:#2d3854;
+      --text:#e8ecf4; --muted:#8d96ad; --accent:#7c9cff; --accent2:#5ee0b8;
+      --warn:#f0c060; --font:system-ui,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0}
+    body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.5;padding:1.5rem 1rem 3rem}
+    .wrap{max-width:720px;margin:0 auto}
+    header{margin-bottom:1.5rem}
+    h1{font-size:1.55rem;font-weight:800;letter-spacing:-.02em}
+    .tag{display:inline-block;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--accent2);margin-bottom:.35rem}
+    .lead{color:var(--muted);font-size:.92rem;margin-top:.4rem}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:1rem;padding:1.15rem 1.2rem;margin-bottom:1rem}
+    label{display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.04em}
+    input,textarea{width:100%;padding:.65rem .8rem;border-radius:.55rem;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:.9rem}
+    textarea{min-height:5.5rem;resize:vertical}
+    input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+    .row{display:grid;gap:.85rem;margin-bottom:.85rem}
+    .btns{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem}
+    button,.btn-link{padding:.55rem 1rem;border-radius:.5rem;border:none;font:inherit;font-weight:800;font-size:.85rem;cursor:pointer;text-decoration:none;display:inline-block}
+    button.primary{background:var(--accent);color:#0a1020}
+    button.ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+    #plano{display:none}
+    #plano.on{display:block}
+    .intent{font-size:.82rem;color:var(--warn);font-weight:700;margin-bottom:.75rem}
+    .steps{display:flex;flex-direction:column;gap:0;border:1px solid var(--border);border-radius:.75rem;overflow:hidden}
+    .step{display:grid;grid-template-columns:2rem 1fr auto;gap:.6rem .85rem;align-items:center;padding:.85rem 1rem;background:var(--surface);border-bottom:1px solid var(--border)}
+    .step:last-child{border-bottom:none}
+    .step .n{font-weight:900;color:var(--accent);font-size:1rem}
+    .step h3{font-size:.92rem;font-weight:800}
+    .step p{font-size:.78rem;color:var(--muted);margin-top:.1rem}
+    .step a.go{padding:.35rem .65rem;border-radius:.4rem;background:var(--accent);color:#0a1020;font-weight:800;font-size:.72rem;text-decoration:none;white-space:nowrap}
+    .step.extra .n{color:var(--accent2)}
+    .hist{margin-top:1.25rem}
+    .hist h2{font-size:.95rem;margin-bottom:.6rem}
+    .hist-item{font-size:.8rem;color:var(--muted);padding:.5rem 0;border-bottom:1px solid var(--border);cursor:pointer}
+    .hist-item:hover{color:var(--text)}
+    .foot{margin-top:1.5rem;font-size:.8rem;color:var(--muted)}
+    .foot a{color:var(--accent)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="tag">Ecossistema Coordenado de Operações</span>
+      <h1>EcoMaestro</h1>
+      <p class="lead">Condomínio inteligente de apps — informe o projeto e a demanda; o maestro indica <strong>quem entrega</strong> e em qual ordem.</p>
+    </header>
+
+    <div class="card">
+      <div class="row">
+        <div>
+          <label for="nome">Nome do projeto</label>
+          <input id="nome" type="text" placeholder="Ex.: FREEDOM, geogrowth, meu-app" autocomplete="off" />
+        </div>
+        <div>
+          <label for="link">Link ou caminho (opcional)</label>
+          <input id="link" type="text" placeholder="github.com/org/repo · c:\_PROJETOS\FREEDOM · http://127.0.0.1:8765" />
+        </div>
+        <div>
+          <label for="desc">Descrição do modelo / demanda</label>
+          <textarea id="desc" placeholder="Ex.: ideia nova de app FIRE · auditar repo antes do PR · pesquisar concorrentes · bug urgente no login"></textarea>
+        </div>
+      </div>
+      <div class="btns">
+        <button type="button" class="primary" id="btnRotear">Gerar plano de entrega</button>
+        <button type="button" class="ghost" id="btnLimpar">Limpar</button>
+      </div>
+    </div>
+
+    <div class="card" id="plano">
+      <p class="intent" id="intentLabel"></p>
+      <div class="steps" id="steps"></div>
+      <p class="lead" style="margin-top:.85rem;font-size:.8rem" id="resumo"></p>
+    </div>
+
+    <div class="hist" id="histBox" hidden>
+      <h2>Demandas recentes</h2>
+      <div id="histList"></div>
+    </div>
+
+    <p class="foot">
+      <a href="https://github.com/RivasCode-Ops/workbench/blob/main/docs/GITHUB-INSPIRACOES-ECOSSISTEMA.md" target="_blank" rel="noopener">Ecossistema (GitHub)</a> ·
+      <a href="docs/MODELO-CONDOMINIO.md">Modelo do condomínio</a> ·
+      <a href="https://github.com/RivasCode-Ops/EcoMaestro">Repo</a>
+    </p>
+  </div>
+
+  <script>
+(function () {
+  const STORAGE = 'ecomaestro_demands_v1';
+
+  const MORADORES = {
+    dlogica: {
+      id: 'dlogica', name: 'dLogica', role: 'morador', order: 1,
+      q: 'O que esta demanda precisa virar?',
+      href: '../dlogica/README.md',
+      why: 'Definir problema, objetivo e tipo de solução antes de construir.'
+    },
+    workbench: {
+      id: 'workbench', name: 'workbench', role: 'morador', order: 2,
+      q: 'O que foi decidido e qual a direção oficial?',
+      href: '../workbench/CAMINHOS.md',
+      why: 'Governança, handoff e kit de método (00–50).'
+    },
+    cursor: {
+      id: 'cursor', name: 'Cursor', role: 'morador', order: 3,
+      q: 'Como implementar o escopo aprovado?',
+      href: null,
+      why: 'Abra a pasta do projeto na IDE e siga o handoff do workbench.'
+    },
+    max: {
+      id: 'max', name: 'Max Stack', role: 'morador', order: 4,
+      q: 'Como está o código do repositório?',
+      href: 'http://127.0.0.1:3847/',
+      why: 'Auditoria técnica, health score e evolução do repo.'
+    }
+  };
+
+  const EXTRAS = {
+    cortana: {
+      id: 'cortana', name: 'Cortana', role: 'extra',
+      q: 'O que a web e as fontes dizem?',
+      href: 'http://127.0.0.1:8787/',
+      why: 'Pesquisa externa com fontes — não substitui definição nem código.'
+    },
+    freedom: {
+      id: 'freedom', name: 'FREEDOM', role: 'extra',
+      q: 'Quando atinjo a independência financeira (FIRE)?',
+      href: 'http://127.0.0.1:8765/',
+      why: 'Planejamento FIRE local — patrimônio, meta, Coast FIRE.'
+    },
+    consorcio: {
+      id: 'consorcio', name: 'CONSORCIO', role: 'complement',
+      q: 'Consórcio e Open Finance?',
+      href: '../CONSORCIO/README.md',
+      why: 'Dados financeiros reais (grupos, score) — complemento ao simulador.'
+    },
+    recuperacao: {
+      id: 'recuperacao', name: 'Recuperação Financeira', role: 'complement',
+      q: 'Saúde financeira e dívidas?',
+      href: '../Recuperacao_Financeira/README.md',
+      why: 'Dashboard de recuperação — fora do fluxo FIRE puro.'
+    },
+    arbilocal: {
+      id: 'arbilocal', name: 'ARBILOCAL', role: 'complement',
+      q: 'Decisão comercial / fornecedor?',
+      href: 'https://github.com/RivasCode-Ops/ARBILOCAL',
+      why: 'Busca e síntese para revenda e fornecedor.'
+    },
+    simMoto: {
+      id: 'simMoto', name: 'Simulador Troca Moto', role: 'complement',
+      q: 'Quanto este gasto em bem durável custa?',
+      href: '../Simulador-Troca-Moto/index.html',
+      why: 'Complemento à narrativa “custo de um gasto” (FREEDOM V3).'
+    },
+    geogrowth: {
+      id: 'geogrowth', name: 'geogrowth', role: 'product',
+      q: 'Produto geográfico / crescimento?',
+      href: 'http://127.0.0.1:5190/',
+      why: 'Produto existente na pasta _PROJETOS.'
+    }
+  };
+
+  const KW = [
+    { keys: ['fire', 'independência', 'independencia', 'aposentadoria', 'patrimônio meta', 'swr', '4%', 'coast fire', 'barista'], extras: ['freedom'], intent: 'fire' },
+    { keys: ['pesquis', 'mercado', 'concorr', 'web', 'fontes', 'legisla', 'benchmark extern'], extras: ['cortana'], intent: 'pesquisar' },
+    { keys: ['auditar', 'auditoria', 'repo', 'repositório', 'repositorio', 'health', 'qualidade código', 'segurança código', 'pr antes'], moradores: ['max', 'workbench'], intent: 'auditar' },
+    { keys: ['bug urgente', 'correção rápida', 'correcao rapida', 'hotfix local', '5 minutos'], moradores: ['workbench', 'cursor', 'max'], intent: 'correcao_rapida', wb: '50-CORRECAO-RAPIDA' },
+    { keys: ['bug', 'erro', 'falha', 'quebrou', 'não funciona'], moradores: ['workbench', 'cursor', 'max'], intent: 'implementar' },
+    { keys: ['implementar', 'codar', 'desenvolver', 'feature', 'funcionalidade', 'criar tela'], moradores: ['workbench', 'cursor', 'max'], intent: 'implementar' },
+    { keys: ['pr ', 'pull request', 'merge', 'revisar diff', 'guardião'], moradores: ['workbench', 'max'], intent: 'governanca' },
+    { keys: ['decidido', 'governança', 'governanca', 'handoff', 'prd', 'escopo aprovado', 'método'], moradores: ['workbench', 'cursor'], intent: 'governanca' },
+    { keys: ['ideia', 'modelo de negócio', 'modelo de negocio', 'o que construir', 'definir', 'não sei por onde', 'demanda confusa'], moradores: ['dlogica', 'workbench', 'cursor', 'max'], intent: 'ideia_nova' },
+    { keys: ['consórcio', 'consorcio', 'open finance', 'pluggy'], extras: ['consorcio'], intent: 'financeiro_real' },
+    { keys: ['dívida', 'divida', 'recuperação', 'recuperacao', 'inadimpl'], extras: ['recuperacao'], intent: 'financeiro_real' },
+    { keys: ['fornecedor', 'revenda', 'arbi', 'comercial', 'cotação mercado'], extras: ['arbilocal', 'cortana'], intent: 'comercial' },
+    { keys: ['moto', 'troca de moto', 'veículo', 'veiculo', 'parcela bem'], extras: ['simMoto', 'freedom'], intent: 'gasto_bem' },
+    { keys: ['geogrowth', 'geo growth', 'mapa geo'], extras: ['geogrowth'], intent: 'produto' }
+  ];
+
+  function norm(s) {
+    return (s || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+  }
+
+  function parseLink(raw) {
+    const t = (raw || '').trim();
+    if (!t) return {};
+    const out = { raw: t };
+    const gh = t.match(/github\.com\/([^/\s]+)\/([^/\s#?]+)/i);
+    if (gh) {
+      out.github = { org: gh[1], repo: gh[2].replace(/\.git$/, '') };
+      out.maxUrl = 'http://127.0.0.1:3847/?repo=' + encodeURIComponent('https://github.com/' + gh[1] + '/' + gh[2]);
+    }
+    const port = t.match(/127\.0\.0\.1:(\d+)/);
+    if (port) out.port = port[1];
+    if (/^c:\\|^c:\/|_projetos/i.test(t)) {
+      const folder = t.split(/[\\/]/).filter(Boolean).pop();
+      out.localFolder = folder;
+    }
+    return out;
+  }
+
+  function linkToExtras(parsed) {
+    const ex = [];
+    if (parsed.port === '8765') ex.push('freedom');
+    if (parsed.port === '8787') ex.push('cortana');
+    if (parsed.port === '3847') return { moradores: ['max'], extras: ex, intent: 'auditar' };
+    if (parsed.port === '5190') ex.push('geogrowth');
+    if (parsed.github) {
+      return { moradores: ['dlogica', 'workbench', 'cursor', 'max'], extras: ex, intent: 'repo_github', maxUrl: parsed.maxUrl };
+    }
+    return null;
+  }
+
+  function classify(desc, linkInfo) {
+    const text = norm(desc);
+    const fromLink = linkToExtras(linkInfo);
+    let best = { score: 0, rule: null };
+    for (const rule of KW) {
+      let score = 0;
+      for (const k of rule.keys) {
+        if (text.includes(norm(k))) score += 2;
+      }
+      if (score > best.score) best = { score, rule };
+    }
+    if (fromLink && (!best.rule || best.score < 3)) {
+      return { ...fromLink, label: 'Detectado pelo link' };
+    }
+    if (!best.rule) {
+      return {
+        moradores: ['dlogica', 'workbench', 'cursor', 'max'],
+        extras: [],
+        intent: 'ideia_nova',
+        label: 'Fluxo padrão (demanda nova ou genérica)'
+      };
+    }
+    const r = best.rule;
+    return {
+      moradores: r.moradores || ['dlogica', 'workbench', 'cursor', 'max'],
+      extras: r.extras || [],
+      intent: r.intent,
+      wb: r.wb,
+      label: 'Detectado pela descrição'
+    };
+  }
+
+  function buildSteps(plan, linkInfo, projectName) {
+    const steps = [];
+    let n = 0;
+    const add = (app, note) => {
+      n++;
+      let href = app.href;
+      if (app.id === 'max' && linkInfo.maxUrl) href = linkInfo.maxUrl;
+      if (app.id === 'workbench' && plan.wb) href = '../workbench/' + plan.wb + '/README.md';
+      if (app.id === 'cursor' && linkInfo.localFolder) {
+        note = (note || '') + ' Pasta sugerida: c:\\_PROJETOS\\' + linkInfo.localFolder;
+      }
+      if (app.id === 'cursor' && linkInfo.github) {
+        note = (note || '') + ' Repo: ' + linkInfo.github.org + '/' + linkInfo.github.repo;
+      }
+      steps.push({ n, app, note: note || app.why, href });
+    };
+
+    const seen = new Set();
+    for (const id of plan.extras || []) {
+      if (EXTRAS[id] && !seen.has(id)) {
+        seen.add(id);
+        add(EXTRAS[id]);
+      }
+    }
+    const order = ['dlogica', 'workbench', 'cursor', 'max'];
+    for (const id of order) {
+      if ((plan.moradores || []).includes(id) && MORADORES[id] && !seen.has(id)) {
+        seen.add(id);
+        add(MORADORES[id]);
+      }
+    }
+    steps.sort((a, b) => {
+      const ao = a.app.role === 'morador' ? a.app.order : 10;
+      const bo = b.app.role === 'morador' ? b.app.order : 10;
+      if (ao !== bo) return ao - bo;
+      return a.n - b.n;
+    });
+    steps.forEach((s, i) => { s.n = i + 1; });
+    return steps;
+  }
+
+  const INTENT_PT = {
+    ideia_nova: 'Ideia / demanda nova',
+    governanca: 'Governança e escopo',
+    implementar: 'Implementação',
+    auditar: 'Auditoria de repositório',
+    pesquisar: 'Pesquisa externa',
+    fire: 'Independência financeira (FIRE)',
+    financeiro_real: 'Finanças reais (dados)',
+    comercial: 'Decisão comercial',
+    correcao_rapida: 'Correção rápida',
+    gasto_bem: 'Custo de gasto / bem durável',
+    produto: 'Produto existente',
+    repo_github: 'Repositório GitHub'
+  };
+
+  function saveDemand(nome, desc, link, plan) {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(STORAGE) || '[]'); } catch (_) {}
+    list.unshift({
+      ts: Date.now(),
+      nome, desc, link,
+      intent: plan.intent
+    });
+    localStorage.setItem(STORAGE, JSON.stringify(list.slice(0, 12)));
+    renderHist();
+  }
+
+  function renderHist() {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(STORAGE) || '[]'); } catch (_) {}
+    const box = document.getElementById('histBox');
+    const el = document.getElementById('histList');
+    if (!list.length) { box.hidden = true; return; }
+    box.hidden = false;
+    el.innerHTML = list.map((d) => {
+      const when = new Date(d.ts).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+      return '<div class="hist-item" data-nome="' + esc(d.nome) + '" data-desc="' + esc(d.desc) + '" data-link="' + esc(d.link) + '">' +
+        esc(d.nome || '(sem nome)') + ' · ' + esc(INTENT_PT[d.intent] || d.intent) + ' · ' + when + '</div>';
+    }).join('');
+    el.querySelectorAll('.hist-item').forEach((node) => {
+      node.addEventListener('click', () => {
+        document.getElementById('nome').value = node.dataset.nome || '';
+        document.getElementById('desc').value = node.dataset.desc || '';
+        document.getElementById('link').value = node.dataset.link || '';
+        rotear();
+      });
+    });
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  }
+
+  function rotear() {
+    const nome = document.getElementById('nome').value.trim();
+    const desc = document.getElementById('desc').value.trim();
+    const link = document.getElementById('link').value.trim();
+    if (!nome && !desc && !link) {
+      alert('Informe pelo menos o nome do projeto, a descrição ou um link.');
+      return;
+    }
+    const linkInfo = parseLink(link);
+    const plan = classify(desc, linkInfo);
+    const steps = buildSteps(plan, linkInfo, nome);
+
+    document.getElementById('intentLabel').textContent =
+      (nome ? 'Projeto: ' + nome + ' · ' : '') +
+      (INTENT_PT[plan.intent] || plan.intent) + ' — ' + (plan.label || '');
+
+    const host = document.getElementById('steps');
+    host.innerHTML = steps.map((s) => {
+      const extra = s.app.role !== 'morador';
+      const go = s.href
+        ? '<a class="go" href="' + esc(s.href) + '" target="_blank" rel="noopener">Abrir</a>'
+        : '<span class="go" style="opacity:.45">IDE</span>';
+      return '<div class="step' + (extra ? ' extra' : '') + '">' +
+        '<span class="n">' + s.n + '</span>' +
+        '<div><h3>' + esc(s.app.name) + '</h3><p>' + esc(s.app.q) + ' — ' + esc(s.note) + '</p></div>' +
+        go + '</div>';
+    }).join('');
+
+    document.getElementById('resumo').textContent =
+      'Ordem sugerida: siga os passos de cima para baixo. O EcoMaestro não executa por você — indica quem entrega cada parte do condomínio.';
+
+    document.getElementById('plano').classList.add('on');
+    saveDemand(nome, desc, link, plan);
+  }
+
+  document.getElementById('btnRotear').addEventListener('click', rotear);
+  document.getElementById('btnLimpar').addEventListener('click', () => {
+    document.getElementById('nome').value = '';
+    document.getElementById('desc').value = '';
+    document.getElementById('link').value = '';
+    document.getElementById('plano').classList.remove('on');
+  });
+
+  renderHist();
+})();
+  </script>
+</body>
+</html>
