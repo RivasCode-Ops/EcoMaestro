@@ -1084,8 +1084,32 @@ document.getElementById('statusSelect').addEventListener('change', (e) => patchS
   }
 })();
 
+function applyProjectFromUrl() {
+  const params = new URLSearchParams(location.search);
+  const id = (params.get('project') || params.get('pasta') || '').trim();
+  if (!id) return;
+  const sel = document.getElementById('selProjeto');
+  if (!sel) return;
+  const trySelect = () => {
+    if ([...sel.options].some((o) => o.value === id)) {
+      sel.value = id;
+      onProjectSelectChange();
+      return true;
+    }
+    return false;
+  };
+  if (!trySelect()) {
+    const t = setInterval(() => {
+      if (trySelect()) clearInterval(t);
+    }, 400);
+    setTimeout(() => clearInterval(t), 15000);
+  }
+}
+
 renderHist();
-loadProjectsCatalog(false).catch(() => applyFallbackProjects('erro ao carregar'));
+loadProjectsCatalog(false)
+  .then(() => applyProjectFromUrl())
+  .catch(() => applyFallbackProjects('erro ao carregar'));
 if (apiOnline()) {
   loadApiDemands();
   loadPorts();

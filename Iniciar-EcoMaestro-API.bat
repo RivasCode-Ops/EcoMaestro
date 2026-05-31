@@ -12,7 +12,12 @@ if errorlevel 1 (
 
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8771" ^| findstr "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
 
+set "PROJ=%~1"
 echo EcoMaestro API + UI em http://127.0.0.1:8771/
 start "EcoMaestro API" /MIN cmd /c "cd /d %~dp0 && node server.mjs"
 timeout /t 2 /nobreak >nul
-start "" "http://127.0.0.1:8771/"
+if not "%PROJ%"=="" (
+  start "" "http://127.0.0.1:8771/?project=%PROJ%"
+) else (
+  start "" "http://127.0.0.1:8771/"
+)
