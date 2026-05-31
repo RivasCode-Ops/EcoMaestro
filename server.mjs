@@ -5,7 +5,8 @@
  */
 import http from 'http';
 import { readFile } from 'fs/promises';
-import { join, extname } from 'path';
+import { join, extname, normalize } from 'path';
+import { PROJETOS_ROOT } from './lib/project-setup.mjs';
 import { fileURLToPath } from 'url';
 import { analyzeDemand } from './lib/router.mjs';
 import { scaffoldProject } from './lib/project-scaffold.mjs';
@@ -80,6 +81,22 @@ async function serveStatic(pathname) {
   rel = rel.replace(/\.\./g, '');
   const file = join(ROOT, rel);
   if (!file.startsWith(ROOT)) return null;
+  try {
+    const buf = await readFile(file);
+    const ext = extname(file).toLowerCase();
+    return { buf, type: MIME[ext] || 'application/octet-stream' };
+  } catch {
+    return null;
+  }
+}
+
+/** Arquivos do ecossistema em c:\_PROJETOS — ex. /p/dlogica/README.md */
+async function serveProjetosFile(pathname) {
+  if (!pathname.startsWith('/p/')) return null;
+  const rel = decodeURIComponent(pathname.slice(3)).replace(/\.\./g, '');
+  const root = normalize(PROJETOS_ROOT);
+  const file = normalize(join(root, rel));
+  if (!file.toLowerCase().startsWith(root.toLowerCase())) return null;
   try {
     const buf = await readFile(file);
     const ext = extname(file).toLowerCase();
@@ -232,6 +249,12 @@ const server = http.createServer(async (req, res) => {
       const ok = await handleApi(req, res, pathname);
       if (ok) return;
       send(res, 404, { error: 'Rota não encontrada' });
+      return;
+    }
+
+    const ecoFile = await serveProjetosFile(pathname);
+    if (ecoFile) {
+      send(res, 200, ecoFile.buf, ecoFile.type);
       return;
     }
 

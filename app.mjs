@@ -1,5 +1,6 @@
 import { analyzeDemand } from './lib/router.mjs';
 import { FALLBACK_PROJECTS } from './lib/projects-fallback.mjs';
+import { resolveHrefForUi } from './lib/eco-href.mjs';
 
 const STORAGE = 'ecomaestro_demands_v2';
 const STORAGE_PROJECT = 'ecomaestro_last_project';
@@ -10,6 +11,10 @@ let projectsCatalog = [];
 
 function esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function linkHref(href) {
+  return resolveHrefForUi(href, isFileMode());
 }
 
 function apiOnline() {
@@ -141,7 +146,7 @@ function renderEcoOverlaps(list) {
         '<br><span class="hint">' +
         esc(o.action) +
         '</span> ' +
-        (o.href ? '<a class="go" href="' + esc(o.href) + '" target="_blank" rel="noopener">Abrir</a>' : '') +
+        (o.href ? '<a class="go" href="' + esc(linkHref(o.href)) + '" target="_blank" rel="noopener">Abrir</a>' : '') +
         '</p>'
     )
     .join('');
@@ -163,7 +168,7 @@ function renderCursorKit(kit) {
         '<a class="go' +
         (start ? ' kit-start' : '') +
         '" href="' +
-        esc(l.href) +
+        esc(linkHref(l.href)) +
         '" target="_blank" rel="noopener">' +
         esc(l.label) +
         (start ? ' ★' : '') +
@@ -185,8 +190,8 @@ function renderSetup(setup, description) {
   box.hidden = false;
   pathEl.textContent =
     'Pasta sugerida: ' + setup.folder_path + ' — edite o nome no botão se precisar de outro slug.';
-  document.getElementById('linkTutorial').href = setup.tutorial_href;
-  document.getElementById('linkOrquestrador').href = setup.orquestrador_href;
+  document.getElementById('linkTutorial').href = linkHref(setup.tutorial_href);
+  document.getElementById('linkOrquestrador').href = linkHref(setup.orquestrador_href);
   linkPasta.href = setup.explorer_href;
   linkPasta.hidden = false;
   msg.textContent = '';
@@ -237,7 +242,7 @@ function renderReport(record, fromApi = false) {
   document.getElementById('listaPrecisa').innerHTML = (rep.needs || []).map((n) => '<li>' + esc(n) + '</li>').join('');
   document.getElementById('listaAplica').innerHTML = (rep.aplicadores || []).map((a) => {
     const go = a.href
-      ? '<a class="go" href="' + esc(a.href) + '" target="_blank" rel="noopener">Abrir</a>'
+      ? '<a class="go" href="' + esc(linkHref(a.href)) + '" target="_blank" rel="noopener">Abrir</a>'
       : '<span class="go" style="opacity:.4;font-size:.7rem">IDE</span>';
     return (
       '<div class="aplicador' +
