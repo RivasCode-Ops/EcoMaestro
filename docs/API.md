@@ -48,6 +48,10 @@ Ver [ORQUESTRADOR-ADEQUACAO.md](ORQUESTRADOR-ADEQUACAO.md).
 
 **Body de análise (POST /api/demands):** use `project_folder` (nome da pasta) em vez de digitar GitHub; o servidor preenche o remote automaticamente.
 
+### `GET /api/dashboard` (v1.3 — Painel CEO)
+
+KPIs locais: abertas, por status, último morador, paradas 7d+, médias até triaged/completed.
+
 ### `GET /api/health`
 
 ```json

@@ -746,8 +746,29 @@ async function openRunWizard(demandId, runKey) {
   }
   const { error, data } = await apiFetch('/wizard/' + encodeURIComponent(run.resident));
   const spec = !error && data ? data : { title: 'Concluir passo', fields: [{ key: 'note', label: 'O que foi feito?', required: true }] };
+  const d = currentRecord?.demand || {};
   title.textContent = spec.title || 'Registrar passo';
-  form.innerHTML = (spec.fields || [])
+  const ctx =
+    '<div class="setup-card" style="margin-bottom:.75rem;padding:.65rem">' +
+    '<p style="margin:0;font-weight:800">' +
+    esc(d.title || 'Demanda') +
+    '</p>' +
+    '<p class="hint" style="margin:.35rem 0 0">Intent: ' +
+    esc(d.current_intent || '—') +
+    ' · Status: ' +
+    esc(d.status || 'draft') +
+    ' · Morador: <strong>' +
+    esc(run.resident) +
+    '</strong></p>' +
+    '<p class="hint" style="margin:.25rem 0 0">' +
+    esc((d.description || '').slice(0, 200)) +
+    (d.description && d.description.length > 200 ? '…' : '') +
+    '</p></div>';
+  const sub = spec.subtitle ? '<p class="hint">' + esc(spec.subtitle) + '</p>' : '';
+  form.innerHTML =
+    ctx +
+    sub +
+    (spec.fields || [])
     .map(
       (f) =>
         '<label style="display:block;margin:.75rem 0 .35rem;font-size:.78rem;font-weight:700;color:var(--muted)">' +
@@ -758,7 +779,7 @@ async function openRunWizard(demandId, runKey) {
           ? '<textarea data-key="' + esc(f.key) + '" rows="4" style="width:100%"></textarea>'
           : '<input data-key="' + esc(f.key) + '" type="' + (f.number ? 'number' : 'text') + '" style="width:100%" />')
     )
-    .join('');
+      .join('');
   dlg.dataset.demandId = demandId;
   dlg.dataset.runKey = runKey;
   dlg.showModal();
@@ -1273,14 +1294,20 @@ document.getElementById('statusSelect').addEventListener('change', (e) => patchS
     if (onApi) {
       el.classList.remove('autonomo');
       span.innerHTML =
-        '<strong>API ativa (:8771)</strong> — lista completa de pastas em <code>_PROJETOS</code> · demandas salvas em <code>data/demands/</code>';
+        '<strong>Modo recomendado (:8771)</strong> — demandas em <code>data/demands/</code> · wizard · <a href="/painel.html" style="color:var(--accent2)">Painel CEO</a>';
     } else if (fileMode) {
       span.innerHTML =
-        '<strong>Modo autônomo</strong> — lista principal abaixo. Para <strong>todas</strong> as pastas: ' +
-        '<a href="http://127.0.0.1:8771/" style="color:var(--accent2)">Iniciar-EcoMaestro-API.bat</a> e abra :8771';
+        '<strong>Fallback offline</strong> — recursos limitados (sem painel nem salvar runs). Uso diário: ' +
+        '<a href="http://127.0.0.1:8771/" style="color:var(--accent2)">Iniciar-EcoMaestro-API.bat</a>';
     }
   }
 })();
+
+function applyDemandFromUrl() {
+  const demandId = new URLSearchParams(location.search).get('demand')?.trim();
+  if (!demandId || !apiOnline()) return;
+  loadDemandById(demandId);
+}
 
 function applyProjectFromUrl() {
   const params = new URLSearchParams(location.search);
@@ -1306,7 +1333,10 @@ function applyProjectFromUrl() {
 
 renderHist();
 loadProjectsCatalog(false)
-  .then(() => applyProjectFromUrl())
+  .then(() => {
+    applyProjectFromUrl();
+    applyDemandFromUrl();
+  })
   .catch(() => applyFallbackProjects('erro ao carregar'));
 if (apiOnline()) {
   loadApiDemands();

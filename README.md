@@ -1,78 +1,64 @@
-# EcoMaestro
+# EcoMaestro v1.3
 
 **Maestro do condomínio ECO** — *Ecossistema Coordenado de Operações* (`c:\_PROJETOS`).
 
-Você informa:
+## Como usar no dia a dia (modo recomendado)
 
-1. **Link do GitHub** (repositório existente)  
-2. **Descrição** — projeto novo ou nova funcionalidade  
+1. **Duplo clique:** `Abrir-EcoMaestro.bat` ou `Iniciar-EcoMaestro-API.bat` → http://127.0.0.1:8771/
+2. Escolha **seu projeto** → **Trabalhar neste projeto**
+3. **1 — Abrir** o morador (amarelo) → faça o trabalho no app/IDE
+4. **2 — Terminei este passo** → preencha o **wizard** (grava `output_payload`)
+5. **Verificar adequação** → avance status quando os gates permitirem
+6. **Painel CEO:** http://127.0.0.1:8771/painel.html — demandas abertas, status, paradas
 
-O **relatório** responde **o que precisa** e **quem do condomínio aplica** (com destaque *Comece aqui*).
+Persistência real: `data/demands/*.json` (não é só navegador).
+
+## Fallback offline (contingência)
+
+Sem API — análise local limitada, sem painel nem salvar runs completos:
+
+```text
+EcoMaestro-Autonomo.vbs
+```
+
+Não use como fluxo principal se você quer jornada e painel.
 
 ## Nome e papel
 
 | | |
 |---|---|
 | **Nome** | **EcoMaestro** |
-| **Metáfora** | Síndico/orquestrador do condomínio — não substitui os moradores (cada app mantém sua essência) |
+| **Metáfora** | Síndico/orquestrador — não substitui moradores |
 | **Pergunta** | *Quem entrega esta demanda e em que ordem?* |
-| **Não é** | Um monólito com todas as funções; não unifica telas |
+| **v1.3** | Wizard + painel CEO + circuito dLogica prioritário |
 
-## Uso local (autônomo — recomendado)
-
-Não precisa de servidor, PowerShell, Node, Cursor nem outro app para **abrir e analisar**:
+## API local (`8771`)
 
 ```text
-Duplo clique:  EcoMaestro-Autonomo.vbs
-ou:            Iniciar-EcoMaestro-Autonomo.bat
-ou na raiz:    c:\_PROJETOS\Abrir-EcoMaestro.bat
+Iniciar-EcoMaestro-API.bat
 ```
 
-Funciona **offline** (`file://`). O relatório roda só no navegador.
+| Endpoint | Uso |
+|----------|-----|
+| `POST /api/demands` | Criar demanda + plano |
+| `PATCH /api/demands/:id/runs/:key` | Wizard → run done |
+| `GET /api/dashboard` | KPIs painel CEO |
+| `GET /api/demands/:id/adequacao` | Orquestrador |
 
-Opcional (servidor estático `127.0.0.1:8770`):
+Detalhes: [docs/API.md](docs/API.md) · PRD: [docs/PRD-v1.3.md](docs/PRD-v1.3.md)
 
-```text
-Iniciar-EcoMaestro.bat
-Parar-EcoMaestro.bat
-```
+## Verdade operacional (dados)
 
-## API + persistência (recomendado para salvar demandas)
-
-```text
-Iniciar-EcoMaestro-API.bat    →  http://127.0.0.1:8771/
-ou:  npm start
-Parar-EcoMaestro-API.bat
-```
-
-- `POST /api/demands` — mesmo motor de análise da UI (`github_url`, `description`)
-- `PATCH /api/demands/:id/runs/:resident` — concluir passagem + merge de payload
-- `GET /api/ecosystem/ports` — FREEDOM, Max, Cortana online?
-- Persistência em `data/demands/` (JSON); Postgres opcional (`.env.example`)
-- Detalhes: [docs/API.md](docs/API.md)
-
-A UI em `:8771` lista demandas, exporta JSON, marca runs e mostra portas. No autônomo (`file://`) usa análise local se a API estiver offline.
-
-## Entrada do ecossistema
-
-Use o EcoMaestro **antes** do fluxo fixo de 4 portas quando a demanda ainda não está classificada.
-
-1. **EcoMaestro** — roteia  
-2. **dLogica → workbench → Cursor → Max** — executa (ordem sugerida pelo maestro)  
-3. **Extras** — Cortana, FREEDOM, CONSORCIO, etc., só se o plano indicar  
+| Hoje | Planejado opcional |
+|------|---------------------|
+| JSON em `data/demands/` | Postgres via `DATABASE_URL` |
+| Audit/learning locais | Supabase + RLS |
 
 ## Documentação
 
-- [docs/ANALISE-FUNCIONAL.md](docs/ANALISE-FUNCIONAL.md) — análise de funcionalidade (teste)  
-- [docs/MODELO-CONDOMINIO.md](docs/MODELO-CONDOMINIO.md) — modelo do condomínio (v2)  
-- [docs/CONTRATOS-MORADORES.md](docs/CONTRATOS-MORADORES.md) — JSON entrada/saída por morador  
-- [docs/ESTADOS-E-FLUXOS.md](docs/ESTADOS-E-FLUXOS.md) — estados + jornada UI/API  
-- [docs/API.md](docs/API.md) — REST (`/api/demands`, health, PATCH status)  
-- [docs/ECO-APPS-E-SOBREPOSICOES.md](docs/ECO-APPS-E-SOBREPOSICOES.md) — PROMPT, Cursor-Kit, apps fora das 4 portas  
-- [workbench/Cursor-Kit](../workbench/Cursor-Kit/README.md) — rules genéricas `.cursor` para qualquer repo  
-- [docs/exemplos/demanda-eco-maestro-v1-persistencia.json](docs/exemplos/demanda-eco-maestro-v1-persistencia.json) — exemplo completo  
-- [db/migrations/001_ecomaestro_core.sql](db/migrations/001_ecomaestro_core.sql) — schema Postgres  
-- Índice GitHub: [workbench — inspirações ecossistema](https://github.com/RivasCode-Ops/workbench/blob/main/docs/GITHUB-INSPIRACOES-ECOSSISTEMA.md)
+- [docs/MODELO-CONDOMINIO.md](docs/MODELO-CONDOMINIO.md)
+- [docs/PRD-v1.3.md](docs/PRD-v1.3.md)
+- [docs/ORQUESTRADOR-ADEQUACAO.md](docs/ORQUESTRADOR-ADEQUACAO.md)
 
 ## Repositório
 

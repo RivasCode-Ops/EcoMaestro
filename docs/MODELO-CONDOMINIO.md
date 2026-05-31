@@ -1,6 +1,6 @@
 # Modelo do condomínio — EcoMaestro
 
-> **v2** — de conceito para especificação operável  
+> **v2.1 / Eco v1.3** — de conceito para especificação operável  
 > Ver também: [CONTRATOS-MORADORES.md](CONTRATOS-MORADORES.md) · [ESTADOS-E-FLUXOS.md](ESTADOS-E-FLUXOS.md) · [ANALISE-FUNCIONAL.md](ANALISE-FUNCIONAL.md)
 
 ## Moradores (ferramentas fixas)
@@ -61,6 +61,16 @@ Catálogo SQL: `db/migrations/001_ecomaestro_core.sql`
 
 Diagrama: [ESTADOS-E-FLUXOS.md](ESTADOS-E-FLUXOS.md)
 
+## Como usar no dia a dia (v1.3)
+
+1. Abrir **http://127.0.0.1:8771/** (`Iniciar-EcoMaestro-API.bat`).
+2. **Trabalhar neste projeto** → relatório + guia 1–2.
+3. Concluir cada morador com **wizard** (PATCH → `output_payload`).
+4. **Painel CEO** (`/painel.html`) — saúde do condomínio em JSON local.
+5. Modo `file://` / autônomo = **fallback**, não fluxo principal.
+
+Circuito fechado prioritário: **dLogica** (`analysis.*` → status `triaged`).
+
 ## Interface (3 blocos)
 
 1. **Link do GitHub** — repositório existente.  
@@ -71,10 +81,11 @@ Diagrama: [ESTADOS-E-FLUXOS.md](ESTADOS-E-FLUXOS.md)
 
 ## Persistência
 
-| Camada | v1 | v2 (especificado) |
-|--------|----|--------------------|
-| UI | `localStorage` `ecomaestro_demands_v2` | + export JSON |
-| Backend | — | Postgres `demands`, `demand_resident_runs`, `demand_reports` |
+| Camada | Produção hoje | Upgrade opcional |
+|--------|----------------|------------------|
+| Demandas | `data/demands/*.json` | Postgres (`001`/`002` SQL) |
+| UI | `localStorage` só histórico rápido (10 itens) | — |
+| Painel CEO | `GET /api/dashboard` lê JSON | — |
 
 ## Exemplo completo
 

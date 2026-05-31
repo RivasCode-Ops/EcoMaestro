@@ -30,6 +30,7 @@ import { ollamaAvailable, ollamaStatus } from './lib/llm-ollama.mjs';
 import { auditLog } from './lib/audit-log.mjs';
 import { getWizardForResident, buildOutputPayloadFromWizard } from './lib/run-wizard.mjs';
 import { feedbackIntent, correctIntentForDemand } from './lib/learning-store.mjs';
+import { buildCeoDashboard } from './lib/dashboard.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const PORT = Number(process.env.ECOMAESTRO_PORT || 8771);
@@ -163,6 +164,18 @@ async function handleApi(req, res, pathname) {
         ollama: (await ollamaStatus()).online
       }
     });
+    return true;
+  }
+
+  if (pathname === '/api/dashboard' && req.method === 'GET') {
+    let records = [];
+    if (store.listAllDemandsFull) {
+      records = await store.listAllDemandsFull(tenantId);
+    } else {
+      const summaries = await store.listDemands(500, null, tenantId);
+      records = (await Promise.all(summaries.map((s) => store.getDemand(s.id, tenantId)))).filter(Boolean);
+    }
+    send(res, 200, buildCeoDashboard(records));
     return true;
   }
 
