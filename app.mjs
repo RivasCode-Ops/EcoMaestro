@@ -500,7 +500,22 @@ function renderReport(record, fromApi = false) {
   const d = record.demand;
   const rep = record.report;
   const suffix = rep.title_suffix || '';
-  document.getElementById('tituloProjeto').textContent = d.title + suffix;
+  const folder = d.project_folder || record.payload_snapshot?.context?.project_folder || '';
+  const pasta = d.local_folder || record.payload_snapshot?.context?.localhost_url || (folder ? projectsRoot + '\\' + folder : '');
+  document.getElementById('tituloProjeto').textContent = folder
+    ? folder + (suffix || '')
+    : d.title + suffix;
+  const banner = document.getElementById('projetoAtivoBanner');
+  if (banner) {
+    if (folder) {
+      banner.hidden = false;
+      document.getElementById('projetoAtivoTitulo').textContent = 'Projeto ativo: ' + folder;
+      document.getElementById('projetoAtivoPasta').textContent =
+        'Pasta no PC: ' + pasta + ' — no Cursor: File → Open Folder → cole este caminho';
+    } else {
+      banner.hidden = true;
+    }
+  }
   renderSetup(rep.setup, d.description);
   renderEcoOverlaps(rep.eco_overlaps);
   renderCursorKit(rep.cursor_kit);
