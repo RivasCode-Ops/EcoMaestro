@@ -2,6 +2,8 @@
 Thumbs.db
 *.log
 data/demands/*.json
+data/learning/
+data/audit.log.jsonl
 !data/demands/.gitkeep
 .env
 node_modules/

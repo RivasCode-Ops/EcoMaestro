@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node server.mjs",
     "api": "node server.mjs",
-    "setup:pg": "npm install pg"
+    "setup:pg": "npm install pg",
+    "audit:security": "node scripts/audit-security.mjs",
+    "index:rag": "node scripts/index-eco-rag.mjs",
+    "enterprise:setup": "node scripts/index-eco-rag.mjs"
   },
   "optionalDependencies": {
     "pg": "^8.13.0"

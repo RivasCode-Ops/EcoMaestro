@@ -23,6 +23,13 @@ import { resolveProjectGuide } from './lib/project-doc.mjs';
 import { checkEcosystemPorts } from './lib/ports.mjs';
 import { VALID_STATUSES } from './lib/status-transition.mjs';
 import * as jsonStore from './lib/storage-json.mjs';
+import { guardRequest, assertRecordTenant, isProjetosPathAllowed, apiKeyRequired, getDefaultTenantId } from './lib/api-guard.mjs';
+import { enrichAnalyzed, onRunCompletedLearning } from './lib/enterprise-analyze.mjs';
+import { ensureRagLoaded, buildRagIndex, searchRag, loadRagIndex } from './lib/rag-store.mjs';
+import { ollamaAvailable } from './lib/llm-ollama.mjs';
+import { auditLog } from './lib/audit-log.mjs';
+import { getWizardForResident, buildOutputPayloadFromWizard } from './lib/run-wizard.mjs';
+import { feedbackIntent, correctIntentForDemand } from './lib/learning-store.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const PORT = Number(process.env.ECOMAESTRO_PORT || 8771);
@@ -119,6 +126,7 @@ function resolveProjetosFile(rel) {
 async function serveProjetosFile(pathname) {
   if (!pathname.startsWith('/p/')) return null;
   const rel = decodeURIComponent(pathname.slice(3)).replace(/\.\./g, '');
+  if (!isProjetosPathAllowed(rel)) return null;
   const file = resolveProjetosFile(rel);
   if (!file) return null;
   try {
@@ -133,13 +141,84 @@ async function serveProjetosFile(pathname) {
 async function handleApi(req, res, pathname) {
   const reqUrl = new URL(req.url || '/', 'http://127.0.0.1');
 
+  const guard = guardRequest(req, res, send, pathname);
+  if (!guard.ok) return true;
+  const tenantId = guard.tenantId;
+
   if (req.method === 'OPTIONS') {
     send(res, 204, '');
     return true;
   }
 
   if (pathname === '/api/health' && req.method === 'GET') {
-    send(res, 200, { ok: true, storage: store.storageKind(), port: PORT });
+    const rag = await loadRagIndex();
+    send(res, 200, {
+      ok: true,
+      storage: store.storageKind(),
+      port: PORT,
+      enterprise: {
+        api_key_required: apiKeyRequired(),
+        tenant_default: getDefaultTenantId(),
+        rag_chunks: rag.chunk_count || 0,
+        ollama: await ollamaAvailable()
+      }
+    });
+    return true;
+  }
+
+  if (pathname === '/api/enterprise/status' && req.method === 'GET') {
+    const rag = await loadRagIndex();
+    send(res, 200, {
+      api_key_required: apiKeyRequired(),
+      tenant_id: tenantId,
+      rag_chunks: rag.chunk_count || 0,
+      ollama_online: await ollamaAvailable(),
+      llm_model: process.env.ECO_LLM_MODEL || 'llama3.2'
+    });
+    return true;
+  }
+
+  if (pathname === '/api/rag/reindex' && req.method === 'POST') {
+    const built = await buildRagIndex();
+    await ensureRagLoaded();
+    await auditLog({ action: 'rag_reindex', tenant_id: tenantId, chunk_count: built.chunk_count });
+    send(res, 200, built);
+    return true;
+  }
+
+  if (pathname === '/api/rag/search' && req.method === 'GET') {
+    await ensureRagLoaded();
+    const q = reqUrl.searchParams.get('q') || '';
+    const project = reqUrl.searchParams.get('project') || null;
+    send(res, 200, { hits: searchRag(q, project, 8) });
+    return true;
+  }
+
+  const wizardMatch = pathname.match(/^\/api\/wizard\/([^/]+)$/);
+  if (wizardMatch && req.method === 'GET') {
+    send(res, 200, getWizardForResident(decodeURIComponent(wizardMatch[1])));
+    return true;
+  }
+
+  if (pathname === '/api/learning/feedback' && req.method === 'POST') {
+    const body = await readBody(req);
+    if (body === null) {
+      send(res, 400, { error: 'JSON inválido' });
+      return true;
+    }
+    if (body.demand_id && body.corrected_intent) {
+      const record = await store.getDemand(body.demand_id, tenantId);
+      if (!record) {
+        send(res, 404, { error: 'Demanda não encontrada' });
+        return true;
+      }
+      const updated = await correctIntentForDemand(record, body.corrected_intent, tenantId);
+      send(res, 200, { ok: true, case: updated, message: 'Intent corrigido para o loop de aprendizado' });
+      return true;
+    }
+    const updated = await feedbackIntent(body.case_id, body.corrected_intent, body.positive === true);
+    if (!updated) send(res, 404, { error: 'Caso não encontrado' });
+    else send(res, 200, { ok: true, case: updated });
     return true;
   }
 
@@ -151,7 +230,7 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === '/api/demands' && req.method === 'GET') {
     const project = reqUrl.searchParams.get('project') || null;
-    const list = await store.listDemands(50, project);
+    const list = await store.listDemands(50, project, tenantId);
     send(res, 200, { demands: list, project_filter: project });
     return true;
   }
@@ -207,12 +286,13 @@ async function handleApi(req, res, pathname) {
           if (!github_url && resolved.github_url) github_url = resolved.github_url;
         }
       }
-      const analyzed = analyzeDemand({
+      let analyzed = analyzeDemand({
         github_url,
         description: body.description || body.desc || '',
         project_folder,
         folder_path
       });
+      analyzed = await enrichAnalyzed(analyzed, { tenantId, useLlm: body.use_llm !== false });
       const saveCheck = validateDemandSave(analyzed, body.force === true);
       if (!saveCheck.ok) {
         send(res, 422, {
@@ -223,8 +303,9 @@ async function handleApi(req, res, pathname) {
         return true;
       }
       analyzed.orchestration = saveCheck.orchestration;
-      const record = await store.createDemand(analyzed);
+      const record = await store.createDemand(analyzed, tenantId);
       if (!record.orchestration) record.orchestration = saveCheck.orchestration;
+      await auditLog({ action: 'demand_create', tenant_id: tenantId, demand_id: record.id, intent: record.demand?.current_intent });
       send(res, 201, record);
     } catch (e) {
       const code = e.code === 'VALIDATION' ? 400 : 500;
@@ -249,7 +330,7 @@ async function handleApi(req, res, pathname) {
       send(res, 501, { error: 'patchRun não disponível neste storage' });
       return true;
     }
-    const existing = await store.getDemand(id);
+    const existing = await store.getDemand(id, tenantId);
     if (!existing) {
       send(res, 404, { error: 'Demanda não encontrada' });
       return true;
@@ -261,10 +342,19 @@ async function handleApi(req, res, pathname) {
         return true;
       }
     }
-    const record = await store.patchRun(id, runKey, body);
+    const run = (existing.runs || []).find((r) => r.id === runKey || r.resident === runKey);
+    if (body.wizard_answers && run && body.status === 'done') {
+      body.output_payload = buildOutputPayloadFromWizard(run.resident, body.wizard_answers);
+      delete body.wizard_answers;
+    }
+    const record = await store.patchRun(id, runKey, body, tenantId);
     if (!record) send(res, 404, { error: 'Demanda ou passagem não encontrada' });
     else {
       record.orchestration = orchestrateRecord(record);
+      if (body.status === 'done') {
+        await onRunCompletedLearning(record, tenantId);
+        await auditLog({ action: 'run_done', tenant_id: tenantId, demand_id: id, resident: run?.resident });
+      }
       send(res, 200, record);
     }
     return true;
@@ -277,13 +367,14 @@ async function handleApi(req, res, pathname) {
       return true;
     }
     try {
-      const analyzed = analyzeDemand({
+      let analyzed = analyzeDemand({
         github_url: body.github_url || body.link || '',
         description: body.description || body.desc || '',
         project_folder: body.project_folder || body.folder || null,
         folder_path: body.folder_path || null
       });
-      send(res, 200, { ...orchestrateAnalyzed(analyzed), demand_preview: analyzed.demand });
+      analyzed = await enrichAnalyzed(analyzed, { tenantId, useLlm: body.use_llm !== false });
+      send(res, 200, { ...orchestrateAnalyzed(analyzed), demand_preview: analyzed.demand, enterprise: analyzed.enterprise });
     } catch (e) {
       const code = e.code === 'VALIDATION' ? 400 : 500;
       send(res, code, { error: e.message });
@@ -293,7 +384,7 @@ async function handleApi(req, res, pathname) {
 
   const adequacaoMatch = pathname.match(/^\/api\/demands\/([^/]+)\/adequacao$/);
   if (adequacaoMatch && req.method === 'GET') {
-    const record = await store.getDemand(adequacaoMatch[1]);
+    const record = await store.getDemand(adequacaoMatch[1], tenantId);
     if (!record) send(res, 404, { error: 'Demanda não encontrada' });
     else send(res, 200, orchestrateRecord(record));
     return true;
@@ -303,7 +394,7 @@ async function handleApi(req, res, pathname) {
   if (match) {
     const id = match[1];
     if (req.method === 'GET') {
-      const record = await store.getDemand(id);
+      const record = await store.getDemand(id, tenantId);
       if (!record) send(res, 404, { error: 'Demanda não encontrada' });
       else {
         if (!record.orchestration) record.orchestration = orchestrateRecord(record);
@@ -321,9 +412,14 @@ async function handleApi(req, res, pathname) {
         send(res, 400, { error: 'Status inválido', allowed: VALID_STATUSES });
         return true;
       }
-      const existing = await store.getDemand(id);
+      const existing = await store.getDemand(id, tenantId);
       if (!existing) {
         send(res, 404, { error: 'Demanda não encontrada' });
+        return true;
+      }
+      const tenantCheck = assertRecordTenant(existing, tenantId);
+      if (!tenantCheck.ok) {
+        send(res, tenantCheck.code, { error: tenantCheck.message, code: 'TENANT_FORBIDDEN' });
         return true;
       }
       const statusCheck = validateStatusPatch(existing, body.status, body.force === true);
@@ -336,7 +432,7 @@ async function handleApi(req, res, pathname) {
         });
         return true;
       }
-      const record = await store.patchDemandStatus(id, body.status);
+      const record = await store.patchDemandStatus(id, body.status, tenantId);
       if (!record) send(res, 404, { error: 'Demanda não encontrada' });
       else {
         record.orchestration = orchestrateRecord(record);
@@ -381,6 +477,19 @@ const server = http.createServer(async (req, res) => {
 });
 
 await initStore();
+
+try {
+  const rag = await loadRagIndex();
+  if (!rag.chunk_count) {
+    const built = await buildRagIndex();
+    console.log('RAG: índice inicial', built.chunk_count, 'chunks');
+  } else {
+    await ensureRagLoaded();
+    console.log('RAG:', rag.chunk_count, 'chunks');
+  }
+} catch (e) {
+  console.warn('RAG:', e.message);
+}
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log('EcoMaestro API + UI: http://127.0.0.1:' + PORT + '/');

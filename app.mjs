@@ -9,6 +9,8 @@ import {
 
 const STORAGE = 'ecomaestro_demands_v2';
 const STORAGE_PROJECT = 'ecomaestro_last_project';
+const STORAGE_API_KEY = 'ecomaestro_api_key';
+const STORAGE_TENANT = 'ecomaestro_tenant_id';
 const API_BASE =
   typeof location !== 'undefined' && location.host
     ? location.origin + '/api'
@@ -318,8 +320,18 @@ async function loadProjectsCatalog(refresh = false) {
   applyFallbackProjects(hint);
 }
 
+function apiHeaders(extra = {}) {
+  const h = { ...extra };
+  const key = localStorage.getItem(STORAGE_API_KEY) || '';
+  const tenant = localStorage.getItem(STORAGE_TENANT) || 'local';
+  if (key) h['X-Eco-Api-Key'] = key;
+  if (tenant) h['X-Eco-Tenant'] = tenant;
+  return h;
+}
+
 async function apiFetch(path, opts = {}) {
   try {
+    opts.headers = apiHeaders(opts.headers || {});
     const res = await fetch(API_BASE + path, opts);
     let data = null;
     try {
@@ -614,6 +626,7 @@ function renderReport(record, fromApi = false) {
   } else if (orch.verdict === 'parcial') {
     showEcoGateBanner(orch, 'Atenção: ' + orch.summary);
   }
+  renderEnterprise(record.enterprise);
 }
 
 const VERDICT_LABEL = {
@@ -713,18 +726,54 @@ function renderRuns(record) {
     .join('');
 
   list.querySelectorAll('.run-done').forEach((btn) => {
-    btn.addEventListener('click', () => completeRun(record.id, btn.dataset.key));
+    btn.addEventListener('click', () => openRunWizard(record.id, btn.dataset.key));
   });
 }
 
-async function completeRun(demandId, runKey) {
+function getRunByKey(record, runKey) {
+  return (record?.runs || []).find((r) => r.id === runKey || r.resident === runKey);
+}
+
+async function openRunWizard(demandId, runKey) {
+  const run = getRunByKey(currentRecord, runKey);
+  if (!run) return;
+  const dlg = document.getElementById('ecoWizardModal');
+  const form = document.getElementById('ecoWizardForm');
+  const title = document.getElementById('ecoWizardTitle');
+  if (!dlg || !form) {
+    await completeRun(demandId, runKey, null);
+    return;
+  }
+  const { error, data } = await apiFetch('/wizard/' + encodeURIComponent(run.resident));
+  const spec = !error && data ? data : { title: 'Concluir passo', fields: [{ key: 'note', label: 'O que foi feito?', required: true }] };
+  title.textContent = spec.title || 'Registrar passo';
+  form.innerHTML = (spec.fields || [])
+    .map(
+      (f) =>
+        '<label style="display:block;margin:.75rem 0 .35rem;font-size:.78rem;font-weight:700;color:var(--muted)">' +
+        esc(f.label) +
+        (f.required ? ' *' : '') +
+        '</label>' +
+        (f.multiline
+          ? '<textarea data-key="' + esc(f.key) + '" rows="4" style="width:100%"></textarea>'
+          : '<input data-key="' + esc(f.key) + '" type="' + (f.number ? 'number' : 'text') + '" style="width:100%" />')
+    )
+    .join('');
+  dlg.dataset.demandId = demandId;
+  dlg.dataset.runKey = runKey;
+  dlg.showModal();
+}
+
+async function completeRun(demandId, runKey, wizardAnswers) {
+  const body = { status: 'done' };
+  if (wizardAnswers) body.wizard_answers = wizardAnswers;
+  else {
+    body.output_payload = { ui_note: 'Concluído manualmente no EcoMaestro', at: new Date().toISOString() };
+  }
   const { error, data } = await apiFetch('/demands/' + demandId + '/runs/' + runKey, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      status: 'done',
-      output_payload: { ui_note: 'Concluído manualmente no EcoMaestro', at: new Date().toISOString() }
-    })
+    body: JSON.stringify(body)
   });
   if (error === 422 && handleOrchestrationBlock(data)) {
     return;
@@ -733,9 +782,22 @@ async function completeRun(demandId, runKey) {
     alert('Não foi possível atualizar a passagem. API em :8771?');
     return;
   }
+  document.getElementById('ecoWizardModal')?.close();
   renderReport(data, true);
   loadApiDemands();
   updateGuiaPassoButtons();
+}
+
+function submitRunWizard() {
+  const dlg = document.getElementById('ecoWizardModal');
+  const demandId = dlg?.dataset.demandId;
+  const runKey = dlg?.dataset.runKey;
+  if (!demandId || !runKey) return;
+  const answers = {};
+  dlg.querySelectorAll('[data-key]').forEach((el) => {
+    answers[el.dataset.key] = el.value;
+  });
+  completeRun(demandId, runKey, answers);
 }
 
 async function patchStatus(status) {
@@ -1024,7 +1086,109 @@ function concluirPassoNoEco() {
     alert('Nada a registrar agora — ou use "Marcar concluído" em Passagens (runs).');
     return;
   }
-  completeRun(currentRecord.id, run.id || run.resident);
+  openRunWizard(currentRecord.id, run.id || run.resident);
+}
+
+function renderEnterprise(ent) {
+  const box = document.getElementById('enterpriseBox');
+  const list = document.getElementById('enterpriseRagList');
+  if (!box || !ent) {
+    if (box) box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const src = ent.intent_source || 'rules';
+  const llm = ent.llm?.ok ? ent.llm.intent + ' (' + (ent.llm.confidence || '?') + '%)' : ent.llm?.reason || 'offline';
+  document.getElementById('enterpriseMeta').textContent =
+    'Intent: ' + src + ' · LLM: ' + llm + ' · Ollama: ' + (ent.ollama_online ? 'online' : 'offline');
+  if (!list) return;
+  const hits = ent.rag || [];
+  list.innerHTML = hits.length
+    ? hits
+        .map(
+          (h) =>
+            '<li><a class="go" href="' +
+            esc(linkHref(h.href)) +
+            '" target="_blank" rel="noopener">' +
+            esc(h.source) +
+            '</a> — ' +
+            esc(h.text.slice(0, 120)) +
+            '…</li>'
+        )
+        .join('')
+    : '<li class="hint">Sem trechos RAG — rode npm run index:rag</li>';
+  const fb = document.getElementById('intentFeedbackBox');
+  const sel = document.getElementById('intentCorrect');
+  if (fb && sel && currentRecord?.id && apiOnline()) {
+    fb.hidden = false;
+    const cur = currentRecord.demand?.current_intent;
+    if (cur && [...sel.options].some((o) => o.value === cur)) sel.value = cur;
+  } else if (fb) fb.hidden = true;
+}
+
+async function submitIntentFeedback() {
+  if (!currentRecord?.id) return;
+  const intent = document.getElementById('intentCorrect')?.value;
+  if (!intent) return;
+  const { error, data } = await apiFetch('/learning/feedback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ demand_id: currentRecord.id, corrected_intent: intent })
+  });
+  if (error) {
+    alert('Não foi possível registrar correção. API em :8771?');
+    return;
+  }
+  alert(data?.message || 'Correção registrada. Próximas demandas similares tendem a usar este intent.');
+}
+
+async function copiarPacoteCursor() {
+  const proj = getSelectedProject();
+  const folder = proj?.folder_path || (proj?.id && proj.id !== '__new__' ? projectsRoot + '\\' + proj.id : '');
+  const desc = document.getElementById('desc')?.value?.trim() || currentRecord?.demand?.description || '';
+  const d00 = projectsRoot.replace(/\\/g, '/') + '/workbench/20-ENTREGA-DE-PRODUTO/04-coding-diario/d00-contexto-sessao.md';
+  const pack =
+    '# Pacote EcoMaestro → Cursor\n\n' +
+    '## Pasta do projeto\n' +
+    folder +
+    '\n\n## Demanda\n' +
+    desc +
+    '\n\n## Primeiro passo\nAbra o D00 no workbench e cole no chat do Cursor:\n' +
+    d00 +
+    '\n\n## ID demanda\n' +
+    (currentRecord?.id || '(gere com Trabalhar neste projeto)');
+  try {
+    await navigator.clipboard.writeText(pack);
+    alert('Pacote copiado — cole no Cursor após Open Folder na pasta do projeto.');
+  } catch {
+    prompt('Copie:', pack);
+  }
+}
+
+async function loadEnterpriseStatus() {
+  if (!apiOnline()) return;
+  const { data } = await apiFetch('/enterprise/status');
+  const el = document.getElementById('enterpriseStatusChip');
+  if (!el || !data) return;
+  el.hidden = false;
+  el.textContent =
+    'Enterprise: RAG ' + (data.rag_chunks || 0) + ' · Ollama ' + (data.ollama_online ? 'on' : 'off');
+}
+
+function saveEnterpriseSettings() {
+  const key = document.getElementById('ecoApiKey')?.value?.trim() || '';
+  const tenant = document.getElementById('ecoTenantId')?.value?.trim() || 'local';
+  if (key) localStorage.setItem(STORAGE_API_KEY, key);
+  else localStorage.removeItem(STORAGE_API_KEY);
+  localStorage.setItem(STORAGE_TENANT, tenant);
+  alert('Configuração salva. Reinicie a página se a API exigir chave.');
+}
+
+async function reindexRag() {
+  const { error, data } = await apiFetch('/rag/reindex', { method: 'POST' });
+  if (error) alert('Falha ao reindexar RAG');
+  else alert('RAG atualizado: ' + (data?.chunk_count || 0) + ' trechos');
+  loadEnterpriseStatus();
 }
 
 function toggleModoFacil() {
@@ -1042,7 +1206,17 @@ if (localStorage.getItem('ecomaestro_modo_facil') === '1') {
   const btn = document.getElementById('btnModoFacil');
   if (btn) btn.textContent = 'Leitura fácil: LIGADO';
 }
-document.getElementById('btnCopiarPasta').addEventListener('click', () => copiarPastaProjeto());
+document.getElementById('btnCopiarPasta')?.addEventListener('click', () => copiarPastaProjeto());
+document.getElementById('btnCopiarPacote')?.addEventListener('click', () => copiarPacoteCursor());
+document.getElementById('btnWizardSubmit')?.addEventListener('click', () => submitRunWizard());
+document.getElementById('btnWizardCancel')?.addEventListener('click', () => document.getElementById('ecoWizardModal')?.close());
+document.getElementById('btnSaveEnterprise')?.addEventListener('click', () => saveEnterpriseSettings());
+document.getElementById('btnReindexRag')?.addEventListener('click', () => reindexRag());
+document.getElementById('btnIntentFeedback')?.addEventListener('click', () => submitIntentFeedback());
+const ecoTenantEl = document.getElementById('ecoTenantId');
+const ecoKeyEl = document.getElementById('ecoApiKey');
+if (ecoTenantEl) ecoTenantEl.value = localStorage.getItem(STORAGE_TENANT) || 'local';
+if (ecoKeyEl) ecoKeyEl.value = localStorage.getItem(STORAGE_API_KEY) || '';
 document.getElementById('selProjeto').addEventListener('dblclick', () => trabalharProjeto());
 document.getElementById('btnAtualizarProjetos').addEventListener('click', () => loadProjectsCatalog(true));
 document.getElementById('filtroProjeto')?.addEventListener('input', () => {
@@ -1113,4 +1287,5 @@ loadProjectsCatalog(false)
 if (apiOnline()) {
   loadApiDemands();
   loadPorts();
+  loadEnterpriseStatus();
 }

@@ -121,7 +121,24 @@
         <span><strong>Modo autônomo</strong> — app local, offline, sem servidor, sem instalar nada. Só este arquivo no navegador.</span>
       </p>
       <div class="ports" id="portsBox" hidden aria-label="Moradores com porta local"></div>
+      <p class="hint" id="enterpriseStatusChip" hidden style="margin-top:.5rem"></p>
     </header>
+
+    <details class="card" id="enterpriseSettings" style="padding:.85rem 1rem">
+      <summary style="cursor:pointer;font-weight:800;font-size:.85rem">Enterprise — API key, tenant, RAG</summary>
+      <div class="field" style="margin-top:.75rem">
+        <label for="ecoTenantId">Tenant (isolamento LGPD)</label>
+        <input id="ecoTenantId" type="text" placeholder="local" />
+      </div>
+      <div class="field">
+        <label for="ecoApiKey">API key (se o servidor exigir)</label>
+        <input id="ecoApiKey" type="password" placeholder="opcional no PC único" autocomplete="off" />
+      </div>
+      <div class="btns">
+        <button type="button" class="ghost" id="btnSaveEnterprise">Salvar</button>
+        <button type="button" class="ghost" id="btnReindexRag">Reindexar RAG</button>
+      </div>
+    </details>
 
     <div class="card">
       <div class="field">
@@ -141,6 +158,7 @@
           <button type="button" class="primary" id="btnTrabalhar" title="Monta o plano do condomínio para este app">Trabalhar neste projeto</button>
           <a class="go" id="linkProjDoc" href="#" target="_blank" rel="noopener" hidden>Abrir documentação</a>
           <button type="button" class="ghost" id="btnCopiarPasta" title="Copiar caminho da pasta do app selecionado">Copiar caminho da pasta</button>
+          <button type="button" class="ghost" id="btnCopiarPacote" title="Pasta + demanda + D00 para colar no Cursor">Copiar pacote Cursor</button>
         </div>
         <div class="hist" id="projDemandBox" hidden style="margin-top:.75rem">
           <h2 style="font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.4rem">Demandas deste projeto (EcoMaestro)</h2>
@@ -188,6 +206,26 @@
           <a class="go" id="linkAbrirPasta" href="#" target="_blank" rel="noopener" hidden>Abrir pasta</a>
         </div>
         <p class="hint" id="setupMsg" style="margin-top:.5rem"></p>
+      </div>
+      <div class="bloco setup-card" id="enterpriseBox" hidden>
+        <h2>Inteligência local (RAG + LLM)</h2>
+        <p class="hint" id="enterpriseMeta"></p>
+        <ul class="needs" id="enterpriseRagList"></ul>
+        <div class="toolbar" id="intentFeedbackBox" style="margin-top:.65rem" hidden>
+          <label for="intentCorrect" class="hint" style="margin:0">Classificação errada?</label>
+          <select id="intentCorrect" title="Intent correto">
+            <option value="ideia_nova">ideia_nova</option>
+            <option value="feature_nova">feature_nova</option>
+            <option value="auditar">auditar</option>
+            <option value="infra_resiliencia">infra_resiliencia</option>
+            <option value="correcao_rapida">correcao_rapida</option>
+            <option value="pesquisar">pesquisar</option>
+            <option value="fire">fire</option>
+            <option value="governanca">governanca</option>
+            <option value="implementar">implementar</option>
+          </select>
+          <button type="button" class="ghost" id="btnIntentFeedback">Corrigir classificação</button>
+        </div>
       </div>
       <div class="bloco">
         <h2>O que precisa</h2>
@@ -256,6 +294,16 @@
       <a href="https://github.com/RivasCode-Ops/EcoMaestro">Repo</a>
     </p>
   </div>
+
+  <dialog id="ecoWizardModal" style="max-width:520px;width:92%;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:1rem;padding:1.25rem">
+    <h2 id="ecoWizardTitle" style="font-size:1.1rem;margin-bottom:.5rem">Registrar passo</h2>
+    <p class="hint">Preencha o mínimo do contrato para os gates aceitarem a conclusão.</p>
+    <form id="ecoWizardForm" style="margin:.75rem 0"></form>
+    <div class="btns">
+      <button type="button" class="primary" id="btnWizardSubmit">Salvar e concluir passo</button>
+      <button type="button" class="ghost" id="btnWizardCancel">Cancelar</button>
+    </div>
+  </dialog>
 
   <script type="module" src="app.mjs"></script>
 </body>
