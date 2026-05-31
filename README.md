@@ -47,6 +47,7 @@ Use o EcoMaestro **antes** do fluxo fixo de 4 portas quando a demanda ainda não
 
 ## Documentação
 
+- [docs/ANALISE-FUNCIONAL.md](docs/ANALISE-FUNCIONAL.md) — **análise de funcionalidade completa (teste)**  
 - [docs/MODELO-CONDOMINIO.md](docs/MODELO-CONDOMINIO.md) — regras de roteamento  
 - Índice GitHub: [workbench — inspirações ecossistema](https://github.com/RivasCode-Ops/workbench/blob/main/docs/GITHUB-INSPIRACOES-ECOSSISTEMA.md)
 
