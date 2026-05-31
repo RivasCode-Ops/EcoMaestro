@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rivascode-ops.github.io/EcoMaestro/schemas/payload-v1.json",
+  "title": "EcoMaestroPayloadV1",
+  "type": "object",
+  "properties": {
+    "demand_id": { "type": "string", "format": "uuid" },
+    "intent": { "type": "string" },
+    "context": {
+      "type": "object",
+      "properties": {
+        "source_type": { "enum": ["description", "github", "localhost", "mixed"] },
+        "github_url": { "type": ["string", "null"], "format": "uri" },
+        "localhost_url": { "type": ["string", "null"] },
+        "raw_description": { "type": "string" },
+        "tipo_demanda": { "enum": ["novo", "feature", "outro"] },
+        "related_links": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "analysis": { "type": "object" },
+    "plan": { "type": "object" },
+    "implementation": { "type": "object" },
+    "audit": { "type": "object" },
+    "financial": { "type": "object" },
+    "commercial": { "type": "object" },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "version": { "type": "integer", "const": 1 },
+        "generated_by": { "type": ["string", "null"] },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "routing_label": { "type": "string" }
+      }
+    }
+  },
+  "required": ["meta"]
+}

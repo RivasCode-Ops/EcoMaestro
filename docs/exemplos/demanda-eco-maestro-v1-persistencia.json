@@ -1,0 +1,165 @@
+{
+  "demand": {
+    "title": "RivasCode-Ops/EcoMaestro",
+    "description": "nova funcionalidade — persistir demandas e passagens no Postgres; API REST mínima; manter modo autônomo offline",
+    "source_type": "github",
+    "github_url": "https://github.com/RivasCode-Ops/EcoMaestro",
+    "tipo_demanda": "feature",
+    "status": "under_review",
+    "current_intent": "feature_nova",
+    "primary_resident": "workbench",
+    "confidence_pct": 88
+  },
+  "report": {
+    "needs": [
+      "Escopo da funcionalidade no workbench (handoff e kit 20-ENTREGA)",
+      "Implementação no Cursor (migrations + rotas)",
+      "Auditoria do repo após as mudanças",
+      "Manter compatibilidade com index.html autônomo (sem quebrar file://)"
+    ],
+    "aplicadores": [
+      { "resident": "workbench", "badge": "Comece aqui", "kit": "20-ENTREGA-DE-PRODUTO" },
+      { "resident": "cursor", "badge": "Depois" },
+      { "resident": "max", "badge": "Depois" }
+    ],
+    "routing_label": "Detectado pela descrição"
+  },
+  "runs": [
+    {
+      "resident": "ecomaestro",
+      "sequence_order": 0,
+      "status": "done",
+      "output_payload": {
+        "context": {
+          "source_type": "github",
+          "github_url": "https://github.com/RivasCode-Ops/EcoMaestro",
+          "raw_description": "nova funcionalidade — persistir demandas...",
+          "tipo_demanda": "feature"
+        },
+        "meta": { "version": 1, "generated_by": "ecomaestro", "routing_label": "Detectado pela descrição" }
+      }
+    },
+    {
+      "resident": "dlogica",
+      "sequence_order": 1,
+      "status": "skipped",
+      "run_notes": "Feature em repo existente — dLogica opcional; pulado neste exemplo"
+    },
+    {
+      "resident": "workbench",
+      "sequence_order": 2,
+      "status": "done",
+      "workbench_kit": "20-ENTREGA-DE-PRODUTO",
+      "output_payload": {
+        "analysis": {
+          "problem": "Demandas do condomínio só vivem no localStorage; não há histórico global nem rastreio de quem aplicou.",
+          "objective": "Persistir demandas e runs em Postgres com contratos JSON entre moradores.",
+          "solution_type": "ferramenta_interna"
+        },
+        "plan": {
+          "workbench_kit": "20-ENTREGA-DE-PRODUTO",
+          "steps": [
+            "Aplicar migration 001_ecomaestro_core.sql",
+            "Documentar contratos e estados (CONTRATOS, ESTADOS)",
+            "Implementar POST/GET /demands (fase 2)",
+            "Exportar relatório JSON na UI (fase 2)"
+          ],
+          "owner": "dev",
+          "deadline": "2026-06-15"
+        },
+        "implementation": {
+          "repo": "https://github.com/RivasCode-Ops/EcoMaestro",
+          "branch": "feat/demands-persistence",
+          "tasks": [
+            { "id": "T1", "description": "SQL demands + runs + reports", "status": "done" },
+            { "id": "T2", "description": "Docs CONTRATOS + ESTADOS + exemplo", "status": "done" },
+            { "id": "T3", "description": "API REST /demands", "status": "todo" },
+            { "id": "T4", "description": "UI: sync opcional com API", "status": "todo" }
+          ]
+        },
+        "meta": { "version": 1, "generated_by": "workbench" }
+      }
+    },
+    {
+      "resident": "cursor",
+      "sequence_order": 3,
+      "status": "done",
+      "output_payload": {
+        "implementation": {
+          "files": [
+            { "path": "db/migrations/001_ecomaestro_core.sql", "status": "created" },
+            { "path": "docs/CONTRATOS-MORADORES.md", "status": "created" },
+            { "path": "docs/ESTADOS-E-FLUXOS.md", "status": "created" },
+            { "path": "schemas/payload-v1.schema.json", "status": "created" }
+          ],
+          "tasks": [
+            { "id": "T1", "status": "done" },
+            { "id": "T2", "status": "done" },
+            { "id": "T3", "status": "todo" },
+            { "id": "T4", "status": "todo" }
+          ]
+        },
+        "meta": { "version": 1, "generated_by": "cursor" }
+      }
+    },
+    {
+      "resident": "max",
+      "sequence_order": 4,
+      "status": "running",
+      "input_payload": {
+        "implementation": {
+          "repo": "https://github.com/RivasCode-Ops/EcoMaestro",
+          "branch": "feat/demands-persistence"
+        }
+      },
+      "output_payload": {
+        "audit": {
+          "health_score": null,
+          "checks": [],
+          "issues": [],
+          "recommendations": ["Rodar scan após merge da branch feat/demands-persistence"],
+          "blockers": []
+        },
+        "meta": { "version": 1, "generated_by": "max" }
+      },
+      "run_notes": "Aguardando npm start Max em :3847"
+    }
+  ],
+  "payload_acumulado": {
+    "demand_id": "00000000-0000-4000-8000-000000000001",
+    "intent": "feature_nova",
+    "context": {
+      "source_type": "github",
+      "github_url": "https://github.com/RivasCode-Ops/EcoMaestro",
+      "raw_description": "nova funcionalidade — persistir demandas e passagens no Postgres",
+      "tipo_demanda": "feature"
+    },
+    "analysis": {
+      "problem": "Demandas do condomínio só vivem no localStorage",
+      "objective": "Persistir demandas e runs em Postgres com contratos JSON",
+      "solution_type": "ferramenta_interna"
+    },
+    "plan": {
+      "workbench_kit": "20-ENTREGA-DE-PRODUTO",
+      "steps": ["Migration SQL", "Docs contratos", "API REST", "UI sync"],
+      "deadline": "2026-06-15"
+    },
+    "implementation": {
+      "repo": "https://github.com/RivasCode-Ops/EcoMaestro",
+      "branch": "feat/demands-persistence",
+      "tasks": [
+        { "id": "T1", "status": "done" },
+        { "id": "T2", "status": "done" },
+        { "id": "T3", "status": "todo" },
+        { "id": "T4", "status": "todo" }
+      ],
+      "files": [
+        { "path": "db/migrations/001_ecomaestro_core.sql", "status": "created" }
+      ]
+    },
+    "audit": {
+      "recommendations": ["Scan completo pós-API"]
+    },
+    "meta": { "version": 1, "generated_by": "cursor" }
+  }
+}
