@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import { analyzeDemand } from './lib/router.mjs';
 import { scaffoldProject } from './lib/project-scaffold.mjs';
 import { scanProjetos, resolveProject } from './lib/projetos-scan.mjs';
+import { resolveProjectGuide } from './lib/project-doc.mjs';
 import { checkEcosystemPorts } from './lib/ports.mjs';
 import { VALID_STATUSES } from './lib/status-transition.mjs';
 import * as jsonStore from './lib/storage-json.mjs';
@@ -142,8 +143,17 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === '/api/demands' && req.method === 'GET') {
-    const list = await store.listDemands(20);
-    send(res, 200, { demands: list });
+    const project = reqUrl.searchParams.get('project') || null;
+    const list = await store.listDemands(50, project);
+    send(res, 200, { demands: list, project_filter: project });
+    return true;
+  }
+
+  const guideMatch = pathname.match(/^\/api\/projects\/([^/]+)\/guide$/);
+  if (guideMatch && req.method === 'GET') {
+    const id = decodeURIComponent(guideMatch[1]);
+    const guide = resolveProjectGuide(id);
+    send(res, 200, guide);
     return true;
   }
 

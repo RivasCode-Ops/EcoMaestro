@@ -1,0 +1,27 @@
+---
+description: EcoMaestro — demandas, UI genérica, histórico em data/demands
+alwaysApply: true
+---
+
+# Desenvolvimento do EcoMaestro
+
+## UI e API — sempre genérico
+
+- Seletor de projetos: qualquer pasta em `PROJETOS_ROOT` (`c:\_PROJETOS`), sem nomes fixos na interface.
+- **Abrir documentação**: `GET /api/projects/{id}/guide` — primeiro arquivo existente entre AGENTS.md, README.md, docs/README.md, etc.
+- **Trabalhar neste projeto**: aciona análise; selecionar na lista não executa.
+
+## Antes de alterar app.mjs / server / router
+
+1. Leia `data/demands/*.json` — demandas recentes do eco.
+2. Não reintroduzir `fs` em módulos importados pelo browser (`verify-links` já separado em `verify-links-node.mjs`).
+3. Não usar script inline que substitua a lista de projetos por 3 itens fixos.
+
+## Histórico
+
+- `listDemands(limit, projectFolder)` — filtro `?project=` na API.
+- Após mudança na UI, validar em http://127.0.0.1:8771/ com Ctrl+F5 e projeto aleatório (ex. XAXA, FREEDOM).
+
+## Entrega
+
+Resumo + passos de teste + menção a demandas JSON afetadas.

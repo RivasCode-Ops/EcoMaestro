@@ -120,8 +120,13 @@
         <p class="hint" id="projAcaoHint">Selecionar na lista <strong>não inicia</strong> o trabalho — use o botão abaixo.</p>
         <div class="btns proj-actions" id="projActions" hidden>
           <button type="button" class="primary" id="btnTrabalhar" title="Monta o plano do condomínio para este app">Trabalhar neste projeto</button>
-          <a class="go" id="linkProjDoc" href="#" target="_blank" rel="noopener">Abrir guia do projeto</a>
-          <button type="button" class="ghost" id="btnCopiarPasta" title="Copiar c:\_PROJETOS\Nome">Copiar caminho da pasta</button>
+          <a class="go" id="linkProjDoc" href="#" target="_blank" rel="noopener" hidden>Abrir documentação</a>
+          <button type="button" class="ghost" id="btnCopiarPasta" title="Copiar caminho da pasta do app selecionado">Copiar caminho da pasta</button>
+        </div>
+        <div class="hist" id="projDemandBox" hidden style="margin-top:.75rem">
+          <h2 style="font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.4rem">Demandas deste projeto (EcoMaestro)</h2>
+          <p class="hint" id="projDemandHint" style="margin-bottom:.35rem"></p>
+          <div class="api-list" id="projDemandList"></div>
         </div>
       </div>
       <div class="field">

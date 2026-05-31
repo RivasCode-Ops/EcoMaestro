@@ -24,7 +24,19 @@ Lista pastas em `c:\_PROJETOS` com `github_url` detectado via `git remote` (cach
 
 - `GET /api/projects?refresh=1` — força novo scan
 
-**Body de análise (POST /api/demands):** use `project_folder` (ex. `FREEDOM`) em vez de digitar GitHub; o servidor preenche o remote automaticamente.
+### `GET /api/projects/{id}/guide`
+
+Resolve documentação do app (genérico): primeiro arquivo existente entre `AGENTS.md`, `README.md`, `docs/README.md`, etc.
+
+```json
+{ "project_id": "XAXA", "rel_path": "AGENTS.md", "href": "/p/XAXA/AGENTS.md", "folder_path": "c:\\_PROJETOS\\XAXA" }
+```
+
+### `GET /api/demands?project={pasta}`
+
+Lista demandas salvas; com `project` filtra só aquela pasta em `_PROJETOS`.
+
+**Body de análise (POST /api/demands):** use `project_folder` (nome da pasta) em vez de digitar GitHub; o servidor preenche o remote automaticamente.
 
 ### `GET /api/health`
 

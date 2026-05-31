@@ -117,32 +117,89 @@ function projectFolderPath(p) {
   return p?.folder_path || (p?.id ? projectsRoot + '\\' + p.id : '');
 }
 
-function projectDocHref(p) {
-  if (!p?.id || p.id === '__new__') return null;
-  const candidates = ['AGENTS.md', 'README.md', 'docs/README.md', 'LEIA-ME.txt'];
-  for (const file of candidates) {
-    const href = '/p/' + encodeURIComponent(p.id) + '/' + file.split('/').map(encodeURIComponent).join('/');
-    return linkHref(href);
+async function loadProjectGuide(p) {
+  const linkDoc = document.getElementById('linkProjDoc');
+  if (!linkDoc || !p?.id || p.id === '__new__') {
+    if (linkDoc) linkDoc.hidden = true;
+    return;
   }
-  return linkHref('/p/' + encodeURIComponent(p.id) + '/');
+  linkDoc.hidden = true;
+  linkDoc.textContent = 'Abrir documentação';
+  linkDoc.title = 'Carregando…';
+  const { error, data } = await apiFetch('/projects/' + encodeURIComponent(p.id) + '/guide');
+  if (error || !data?.href) {
+    linkDoc.title = 'Nenhum AGENTS.md ou README nesta pasta';
+    return;
+  }
+  linkDoc.href = linkHref(data.href);
+  linkDoc.hidden = false;
+  linkDoc.title = (data.rel_path || 'documentação') + ' — ' + projectFolderPath(p);
+}
+
+async function loadProjectDemands(projectId) {
+  const box = document.getElementById('projDemandBox');
+  const list = document.getElementById('projDemandList');
+  const hint = document.getElementById('projDemandHint');
+  if (!box || !list) return;
+  if (!apiOnline() || !projectId || projectId === '__new__') {
+    box.hidden = true;
+    return;
+  }
+  const { error, data } = await apiFetch('/demands?project=' + encodeURIComponent(projectId));
+  if (error || !data?.demands?.length) {
+    box.hidden = false;
+    if (hint) hint.textContent = 'Nenhuma demanda salva ainda para esta pasta — use Trabalhar neste projeto.';
+    list.innerHTML = '';
+    return;
+  }
+  box.hidden = false;
+  if (hint) {
+    hint.textContent =
+      data.demands.length +
+      ' demanda(s) registrada(s). Clique para reabrir o plano — evita repetir o que já foi feito.';
+  }
+  list.innerHTML = data.demands
+    .map((d) => {
+      const when = d.created_at
+        ? new Date(d.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+        : '';
+      return (
+        '<div class="api-item" data-id="' +
+        esc(d.id) +
+        '"><strong>' +
+        esc(d.status || 'draft') +
+        '</strong> · ' +
+        esc(d.description_preview || d.title || '(sem título)') +
+        (when ? ' · ' + when : '') +
+        '</div>'
+      );
+    })
+    .join('');
+  list.querySelectorAll('.api-item').forEach((node) => {
+    node.addEventListener('click', () => loadDemandById(node.dataset.id));
+  });
 }
 
 function updateProjectActions(p) {
   const box = document.getElementById('projActions');
   const btn = document.getElementById('btnTrabalhar');
   const hint = document.getElementById('projAcaoHint');
-  const linkDoc = document.getElementById('linkProjDoc');
   const ok = p?.id && p.id !== '__new__';
   if (box) box.hidden = !ok;
   if (btn) btn.disabled = !ok;
   if (hint) {
     hint.innerHTML = ok
-      ? 'Próximo passo: clique em <strong>Trabalhar neste projeto</strong> (ou duplo clique na lista). O Eco monta o plano; o código roda no <strong>Cursor</strong> na pasta indicada acima.'
+      ? 'Próximo passo: <strong>Trabalhar neste projeto</strong> (ou duplo clique na lista). Documentação e histórico abaixo valem para <strong>qualquer</strong> app selecionado.'
       : 'Para projeto novo, use <strong>+ Criar projeto novo</strong> e depois <strong>Analisar demanda</strong>.';
   }
-  if (linkDoc && ok) {
-    linkDoc.href = projectDocHref(p);
-    linkDoc.textContent = 'Abrir guia (' + p.name + ')';
+  if (ok) {
+    loadProjectGuide(p);
+    loadProjectDemands(p.id);
+  } else {
+    const linkDoc = document.getElementById('linkProjDoc');
+    if (linkDoc) linkDoc.hidden = true;
+    const demandBox = document.getElementById('projDemandBox');
+    if (demandBox) demandBox.hidden = true;
   }
 }
 
@@ -172,7 +229,7 @@ function onProjectSelectChange() {
 async function trabalharProjeto() {
   const proj = getSelectedProject();
   if (!proj?.id || proj.id === '__new__') {
-    alert('Escolha um app na lista (ex. XAXA), não "criar projeto novo".');
+    alert('Escolha um app na lista (qualquer pasta em _PROJETOS), não "criar projeto novo".');
     return;
   }
   const descEl = document.getElementById('desc');
@@ -638,9 +695,9 @@ async function analisar() {
   if (!payload) {
     const p = getSelectedProject();
     if (p?.kind === 'ferramenta') {
-      alert('Para morador do condomínio (workbench, dLogica…), descreva a demanda.\nPara trabalhar no FREEDOM ou outro app, escolha na seção "Seus projetos".');
+      alert('Para morador do condomínio (workbench, dLogica…), descreva a demanda.\nPara trabalhar em um app, escolha uma pasta em "Seus projetos".');
     } else {
-      alert('Escolha um projeto em "Seus projetos" (ex. FREEDOM) e descreva o que quer fazer.');
+      alert('Escolha um projeto em "Seus projetos" e descreva o que quer fazer (ou use Trabalhar neste projeto).');
     }
     return;
   }
@@ -649,6 +706,8 @@ async function analisar() {
   if (apiRecord) {
     renderReport(apiRecord, true);
     loadApiDemands();
+    const pf = payload.project_folder;
+    if (pf) loadProjectDemands(pf);
   } else {
     try {
       const analyzed = analyzeDemand(payload);
