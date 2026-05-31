@@ -146,7 +146,11 @@ function renderEcoOverlaps(list) {
         '<br><span class="hint">' +
         esc(o.action) +
         '</span> ' +
-        (o.href ? '<a class="go" href="' + esc(linkHref(o.href)) + '" target="_blank" rel="noopener">Abrir</a>' : '') +
+        (o.link_check?.status === 'missing'
+          ? '<span class="go" style="opacity:.5;color:var(--warn)">Indisponível</span>'
+          : o.href
+            ? '<a class="go" href="' + esc(linkHref(o.href)) + '" target="_blank" rel="noopener">Abrir</a>'
+            : '') +
         '</p>'
     )
     .join('');
@@ -164,6 +168,14 @@ function renderCursorKit(kit) {
   document.getElementById('cursorKitLinks').innerHTML = (kit.links || [])
     .map((l) => {
       const start = l.id === kit.start_with;
+      const miss = l.link_check?.status === 'missing';
+      if (miss) {
+        return (
+          '<span class="go" style="opacity:.5;color:var(--warn)" title="Arquivo ausente">' +
+          esc(l.label) +
+          ' ✗</span>'
+        );
+      }
       return (
         '<a class="go' +
         (start ? ' kit-start' : '') +
@@ -241,9 +253,28 @@ function renderReport(record, fromApi = false) {
   renderCursorKit(rep.cursor_kit);
   document.getElementById('listaPrecisa').innerHTML = (rep.needs || []).map((n) => '<li>' + esc(n) + '</li>').join('');
   document.getElementById('listaAplica').innerHTML = (rep.aplicadores || []).map((a) => {
-    const go = a.href
-      ? '<a class="go" href="' + esc(linkHref(a.href)) + '" target="_blank" rel="noopener">Abrir</a>'
-      : '<span class="go" style="opacity:.4;font-size:.7rem">IDE</span>';
+    const chk = a.link_check;
+    let go;
+    if (!a.href && (!chk || chk.status === 'ide')) {
+      go = '<span class="go" style="opacity:.4;font-size:.7rem" title="Abra no Cursor">Cursor</span>';
+    } else if (chk?.status === 'missing') {
+      go =
+        '<span class="go" style="opacity:.5;background:var(--border);color:var(--warn)" title="Arquivo ausente em _PROJETOS">Indisponível</span>';
+    } else if (chk?.status === 'external') {
+      go =
+        '<a class="go" href="' +
+        esc(a.href) +
+        '" target="_blank" rel="noopener" title="App local com porta">Abrir app</a>';
+    } else if (a.href) {
+      go =
+        '<a class="go" href="' +
+        esc(linkHref(a.href)) +
+        '" target="_blank" rel="noopener" title="' +
+        esc(chk?.label || 'Abrir') +
+        '">Abrir</a>';
+    } else {
+      go = '<span class="go" style="opacity:.4">—</span>';
+    }
     return (
       '<div class="aplicador' +
       (a.principal ? ' principal' : '') +

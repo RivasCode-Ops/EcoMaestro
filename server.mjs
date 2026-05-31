@@ -5,6 +5,7 @@
  */
 import http from 'http';
 import { readFile } from 'fs/promises';
+import { existsSync } from 'fs';
 import { join, extname, normalize } from 'path';
 import { PROJETOS_ROOT } from './lib/project-setup.mjs';
 import { fileURLToPath } from 'url';
@@ -44,7 +45,8 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.md': 'text/plain; charset=utf-8',
-  '.txt': 'text/plain; charset=utf-8'
+  '.txt': 'text/plain; charset=utf-8',
+  '.bat': 'text/plain; charset=utf-8'
 };
 
 function send(res, status, body, type = 'application/json; charset=utf-8') {
@@ -90,13 +92,27 @@ async function serveStatic(pathname) {
   }
 }
 
+function resolveProjetosFile(rel) {
+  const root = normalize(PROJETOS_ROOT);
+  const direct = normalize(join(root, rel));
+  if (!direct.toLowerCase().startsWith(root.toLowerCase())) return null;
+  if (existsSync(direct)) return direct;
+  const base = rel.replace(/\/$/, '');
+  for (const name of ['README.md', 'README', 'index.html', 'CAMINHOS.md']) {
+    const candidate = normalize(join(root, base, name));
+    if (candidate.toLowerCase().startsWith(root.toLowerCase()) && existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 /** Arquivos do ecossistema em c:\_PROJETOS — ex. /p/dlogica/README.md */
 async function serveProjetosFile(pathname) {
   if (!pathname.startsWith('/p/')) return null;
   const rel = decodeURIComponent(pathname.slice(3)).replace(/\.\./g, '');
-  const root = normalize(PROJETOS_ROOT);
-  const file = normalize(join(root, rel));
-  if (!file.toLowerCase().startsWith(root.toLowerCase())) return null;
+  const file = resolveProjetosFile(rel);
+  if (!file) return null;
   try {
     const buf = await readFile(file);
     const ext = extname(file).toLowerCase();
