@@ -53,6 +53,10 @@
     .hist-item{font-size:.8rem;color:var(--muted);padding:.5rem 0;border-bottom:1px solid var(--border);cursor:pointer}
     .foot{margin-top:1.5rem;font-size:.8rem;color:var(--muted)}
     .foot a{color:var(--accent)}
+    .autonomo{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;padding:.55rem .75rem;border-radius:.55rem;background:rgba(94,224,184,.08);border:1px solid rgba(94,224,184,.35);font-size:.78rem}
+    .autonomo .dot{width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 8px var(--accent2);animation:pulse 2s ease infinite}
+    @keyframes pulse{50%{opacity:.35}}
+    .autonomo strong{color:var(--accent2)}
   </style>
 </head>
 <body>
@@ -61,6 +65,10 @@
       <span class="tag">Ecossistema Coordenado de Operações</span>
       <h1>EcoMaestro</h1>
       <p class="lead">Informe o repositório e o que você quer (projeto novo ou nova funcionalidade). O relatório diz <strong>o que precisa</strong> e <strong>quem do condomínio aplica</strong>.</p>
+      <p class="autonomo" id="modoAutonomo" hidden>
+        <span class="dot" aria-hidden="true"></span>
+        <span><strong>Modo autônomo</strong> — app local, offline, sem servidor, sem instalar nada. Só este arquivo no navegador.</span>
+      </p>
     </header>
 
     <div class="card">
@@ -466,6 +474,18 @@
     document.getElementById('desc').value = '';
     document.getElementById('relatorio').classList.remove('on');
   });
+
+  (function showAutonomo() {
+    const el = document.getElementById('modoAutonomo');
+    if (!el) return;
+    const fileMode = location.protocol === 'file:';
+    const solo = location.hostname === '127.0.0.1' && location.port === '8770';
+    if (fileMode || solo) {
+      el.hidden = false;
+      if (fileMode) el.querySelector('span:last-child').innerHTML =
+        '<strong>Modo autônomo</strong> — abriu direto do disco. Sem servidor, sem Cursor, sem Node. Análise 100% local.';
+    }
+  })();
 
   renderHist();
 })();

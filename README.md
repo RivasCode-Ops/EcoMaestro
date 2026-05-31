@@ -18,10 +18,22 @@ O **relatório** responde **o que precisa** e **quem do condomínio aplica** (co
 | **Pergunta** | *Quem entrega esta demanda e em que ordem?* |
 | **Não é** | Um monólito com todas as funções; não unifica telas |
 
-## Uso local
+## Uso local (autônomo — recomendado)
+
+Não precisa de servidor, PowerShell, Node, Cursor nem outro app para **abrir e analisar**:
 
 ```text
-Iniciar-EcoMaestro.bat   →  http://127.0.0.1:8770/
+Duplo clique:  EcoMaestro-Autonomo.vbs
+ou:            Iniciar-EcoMaestro-Autonomo.bat
+ou na raiz:    c:\_PROJETOS\Abrir-EcoMaestro.bat
+```
+
+Funciona **offline** (`file://`). O relatório roda só no navegador.
+
+Opcional (servidor `127.0.0.1:8770`):
+
+```text
+Iniciar-EcoMaestro.bat
 Parar-EcoMaestro.bat
 ```
 

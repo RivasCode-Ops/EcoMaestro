@@ -1,0 +1,20 @@
+EcoMaestro — modo autonomo (recomendado)
+======================================
+
+Abra SEM instalar nada, SEM servidor, SEM Cursor, SEM Node:
+
+  Duplo clique em:  EcoMaestro-Autonomo.vbs
+  ou:              Iniciar-EcoMaestro-Autonomo.bat
+  ou na raiz _PROJETOS:  Abrir-EcoMaestro.bat
+
+Funciona offline. O relatorio (o que precisa + quem aplica) roda no navegador.
+
+Opcional (com servidor na porta 8770):
+  Iniciar-EcoMaestro.bat
+  Parar-EcoMaestro.bat
+
+Os botoes "Abrir" de Max, FREEDOM e Cortana so funcionam se voce
+tiver iniciado esses apps separadamente — o EcoMaestro nao depende deles
+para abrir e analisar a demanda.
+
+GitHub: https://github.com/RivasCode-Ops/EcoMaestro
