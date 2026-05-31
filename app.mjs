@@ -1,7 +1,11 @@
 import { analyzeDemand } from './lib/router.mjs';
 import { FALLBACK_PROJECTS } from './lib/projects-fallback.mjs';
 import { resolveHrefForUi } from './lib/eco-href.mjs';
-import { orchestrateAnalyzed, orchestrateRecord } from './lib/demand-orchestrator.mjs';
+import {
+  orchestrateAnalyzed,
+  orchestrateRecord,
+  validateDemandSave
+} from './lib/demand-orchestrator.mjs';
 
 const STORAGE = 'ecomaestro_demands_v2';
 const STORAGE_PROJECT = 'ecomaestro_last_project';
@@ -240,6 +244,17 @@ async function trabalharProjeto() {
       proj.name +
       ' — revisar estado atual, próximo passo no workbench e implementação no Cursor.';
   }
+  const payload = buildAnalyzePayload();
+  if (payload) {
+    const pre = await preflightOrchestrate(payload);
+    if (pre.gates && !pre.gates.allow_save_demand) {
+      handleOrchestrationBlock({ error: pre.summary, orchestration: pre });
+      return;
+    }
+    if (pre.verdict === 'plano_ok' || pre.verdict === 'adequado') {
+      showEcoGateBanner(pre, 'Plano validado — pode seguir o condomínio.', 'ok');
+    }
+  }
   await analisar();
   const rel = document.getElementById('relatorio');
   if (rel?.classList.contains('on')) rel.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -306,11 +321,64 @@ async function loadProjectsCatalog(refresh = false) {
 async function apiFetch(path, opts = {}) {
   try {
     const res = await fetch(API_BASE + path, opts);
-    if (!res.ok) return { error: res.status, data: null };
-    return { error: null, data: await res.json() };
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+    if (!res.ok) return { error: res.status, data };
+    return { error: null, data };
   } catch {
     return { error: 'network', data: null };
   }
+}
+
+function showEcoGateBanner(orchestration, message, mode = 'block') {
+  const el = document.getElementById('ecoGateBanner');
+  if (!el) return;
+  if (!orchestration && !message) {
+    el.classList.remove('on', 'ok');
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  el.classList.add('on');
+  el.classList.toggle('ok', mode === 'ok');
+  const g = orchestration?.gates;
+  const arch = g ? (g.architecture_ok ? 'arquitetura OK' : 'arquitetura com falha') : '';
+  const exec = g ? (g.execution_ok ? 'execução OK' : 'execução incompleta') : '';
+  el.innerHTML =
+    (mode === 'ok' ? '<strong>✓ Eco</strong> — ' : '<strong>⛔ Eco bloqueou</strong> — ') +
+    esc(message || orchestration?.summary || '') +
+    (arch || exec ? '<br><span class="hint">' + esc([arch, exec].filter(Boolean).join(' · ')) + '</span>' : '');
+}
+
+async function preflightOrchestrate(payload) {
+  if (apiOnline()) {
+    const { error, data } = await apiFetch('/orchestrate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!error && data?.verdict) return data;
+  }
+  const analyzed = analyzeDemand(payload);
+  return orchestrateAnalyzed(analyzed);
+}
+
+function handleOrchestrationBlock(errData) {
+  if (!errData) return false;
+  const msg = errData.error || errData.message;
+  const orch = errData.orchestration;
+  if (orch) {
+    showEcoGateBanner(orch, msg);
+    renderOrchestration(orch);
+    document.getElementById('orchestrationBox').hidden = false;
+    document.getElementById('relatorio').classList.add('on');
+  }
+  if (msg) alert(msg);
+  return true;
 }
 
 function renderEcoOverlaps(list) {
@@ -501,6 +569,13 @@ function renderReport(record, fromApi = false) {
   renderRuns(record);
   const orch = record.orchestration || orchestrateRecord(record);
   renderOrchestration(orch);
+  if (orch.gates?.allow_save_demand === false) {
+    showEcoGateBanner(orch, orch.summary);
+  } else if (orch.verdict === 'adequado' || orch.verdict === 'plano_ok') {
+    showEcoGateBanner(orch, orch.summary, 'ok');
+  } else if (orch.verdict === 'parcial') {
+    showEcoGateBanner(orch, 'Atenção: ' + orch.summary);
+  }
 }
 
 const VERDICT_LABEL = {
@@ -613,6 +688,9 @@ async function completeRun(demandId, runKey) {
       output_payload: { ui_note: 'Concluído manualmente no EcoMaestro', at: new Date().toISOString() }
     })
   });
+  if (error === 422 && handleOrchestrationBlock(data)) {
+    return;
+  }
   if (error || !data) {
     alert('Não foi possível atualizar a passagem. API em :8771?');
     return;
@@ -628,6 +706,11 @@ async function patchStatus(status) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status })
   });
+  if (error === 422 && handleOrchestrationBlock(data)) {
+    const sel = document.getElementById('statusSelect');
+    if (sel && currentRecord?.demand?.status) sel.value = currentRecord.demand.status;
+    return;
+  }
   if (!error && data) {
     renderReport(data, true);
     loadApiDemands();
@@ -675,7 +758,8 @@ async function tryApi(payload) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  if (error || !data) return null;
+  if (error === 422 && handleOrchestrationBlock(data)) return null;
+  if (error || !data?.demand) return null;
   return data;
 }
 
@@ -777,6 +861,12 @@ async function analisar() {
   } else {
     try {
       const analyzed = analyzeDemand(payload);
+      const saveCheck = validateDemandSave(analyzed, false);
+      if (!saveCheck.ok) {
+        handleOrchestrationBlock({ error: saveCheck.message, orchestration: saveCheck.orchestration });
+        return;
+      }
+      analyzed.orchestration = saveCheck.orchestration;
       renderLocal(analyzed);
       const conf = document.getElementById('confianca');
       conf.textContent +=

@@ -10,7 +10,13 @@ import { join, extname, normalize } from 'path';
 import { PROJETOS_ROOT } from './lib/project-setup.mjs';
 import { fileURLToPath } from 'url';
 import { analyzeDemand } from './lib/router.mjs';
-import { orchestrateAnalyzed, orchestrateRecord } from './lib/demand-orchestrator.mjs';
+import {
+  orchestrateAnalyzed,
+  orchestrateRecord,
+  validateDemandSave,
+  validateRunComplete,
+  validateStatusPatch
+} from './lib/demand-orchestrator.mjs';
 import { scaffoldProject } from './lib/project-scaffold.mjs';
 import { scanProjetos, resolveProject } from './lib/projetos-scan.mjs';
 import { resolveProjectGuide } from './lib/project-doc.mjs';
@@ -207,9 +213,18 @@ async function handleApi(req, res, pathname) {
         project_folder,
         folder_path
       });
-      analyzed.orchestration = orchestrateAnalyzed(analyzed);
+      const saveCheck = validateDemandSave(analyzed, body.force === true);
+      if (!saveCheck.ok) {
+        send(res, 422, {
+          error: saveCheck.message,
+          code: saveCheck.code,
+          orchestration: saveCheck.orchestration
+        });
+        return true;
+      }
+      analyzed.orchestration = saveCheck.orchestration;
       const record = await store.createDemand(analyzed);
-      if (!record.orchestration) record.orchestration = analyzed.orchestration;
+      if (!record.orchestration) record.orchestration = saveCheck.orchestration;
       send(res, 201, record);
     } catch (e) {
       const code = e.code === 'VALIDATION' ? 400 : 500;
@@ -234,9 +249,24 @@ async function handleApi(req, res, pathname) {
       send(res, 501, { error: 'patchRun não disponível neste storage' });
       return true;
     }
+    const existing = await store.getDemand(id);
+    if (!existing) {
+      send(res, 404, { error: 'Demanda não encontrada' });
+      return true;
+    }
+    if (body.status === 'done') {
+      const seq = validateRunComplete(existing, runKey);
+      if (!seq.ok && body.force !== true) {
+        send(res, 422, { error: seq.message, code: seq.code });
+        return true;
+      }
+    }
     const record = await store.patchRun(id, runKey, body);
     if (!record) send(res, 404, { error: 'Demanda ou passagem não encontrada' });
-    else send(res, 200, record);
+    else {
+      record.orchestration = orchestrateRecord(record);
+      send(res, 200, record);
+    }
     return true;
   }
 
@@ -291,9 +321,27 @@ async function handleApi(req, res, pathname) {
         send(res, 400, { error: 'Status inválido', allowed: VALID_STATUSES });
         return true;
       }
+      const existing = await store.getDemand(id);
+      if (!existing) {
+        send(res, 404, { error: 'Demanda não encontrada' });
+        return true;
+      }
+      const statusCheck = validateStatusPatch(existing, body.status, body.force === true);
+      if (!statusCheck.ok) {
+        send(res, 422, {
+          error: statusCheck.message,
+          code: statusCheck.code,
+          orchestration: statusCheck.orchestration,
+          failed_gates: statusCheck.failed_gates
+        });
+        return true;
+      }
       const record = await store.patchDemandStatus(id, body.status);
       if (!record) send(res, 404, { error: 'Demanda não encontrada' });
-      else send(res, 200, record);
+      else {
+        record.orchestration = orchestrateRecord(record);
+        send(res, 200, record);
+      }
       return true;
     }
   }

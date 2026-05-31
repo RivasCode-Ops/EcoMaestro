@@ -2,14 +2,17 @@
 
 Verifica se a **demanda está alinhada ao pedido (propósito)** e se a **execução no condomínio** é adequada aos contratos dos moradores.
 
-## Quando roda
+## Quando roda (e o que bloqueia)
 
-| Momento | Como |
-|---------|------|
-| Após **Trabalhar / Analisar** | Automático no relatório (bloco azul) |
-| A qualquer momento | Botão **Verificar adequação agora** |
-| API | `GET /api/demands/{id}/adequacao` |
-| Só análise (sem salvar) | `POST /api/orchestrate` com `description`, `project_folder` |
+| Momento | Comportamento |
+|---------|----------------|
+| **Trabalhar / Analisar** | Preflight — **bloqueia salvar** se pedido desalinhado (`422`) |
+| **Marcar concluído** (run) | **Bloqueia** se pular ordem dLogica → workbench → Cursor → Max |
+| **Status = completed** | **Bloqueia** se gates de payload vazios (sem analysis/plan/implementation/audit) |
+| Relatório | Bloco orquestrador + faixa vermelha/verde no topo |
+| API | `GET /api/demands/{id}/adequacao` · `POST /api/orchestrate` |
+
+Corpo com `"force": true` só na API (avanço manual excepcional).
 
 ## Vereditos
 
