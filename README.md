@@ -30,12 +30,26 @@ ou na raiz:    c:\_PROJETOS\Abrir-EcoMaestro.bat
 
 Funciona **offline** (`file://`). O relatório roda só no navegador.
 
-Opcional (servidor `127.0.0.1:8770`):
+Opcional (servidor estático `127.0.0.1:8770`):
 
 ```text
 Iniciar-EcoMaestro.bat
 Parar-EcoMaestro.bat
 ```
+
+## API + persistência (recomendado para salvar demandas)
+
+```text
+Iniciar-EcoMaestro-API.bat    →  http://127.0.0.1:8771/
+ou:  npm start
+Parar-EcoMaestro-API.bat
+```
+
+- `POST /api/demands` — mesmo motor de análise da UI (`github_url`, `description`)
+- Persistência em `data/demands/` (JSON); Postgres opcional com `DATABASE_URL`
+- Detalhes: [docs/API.md](docs/API.md)
+
+A UI em `:8771` tenta a API primeiro; no modo autônomo (`file://`) usa análise local se a API estiver offline.
 
 ## Entrada do ecossistema
 
@@ -47,8 +61,13 @@ Use o EcoMaestro **antes** do fluxo fixo de 4 portas quando a demanda ainda não
 
 ## Documentação
 
-- [docs/ANALISE-FUNCIONAL.md](docs/ANALISE-FUNCIONAL.md) — **análise de funcionalidade completa (teste)**  
-- [docs/MODELO-CONDOMINIO.md](docs/MODELO-CONDOMINIO.md) — regras de roteamento  
+- [docs/ANALISE-FUNCIONAL.md](docs/ANALISE-FUNCIONAL.md) — análise de funcionalidade (teste)  
+- [docs/MODELO-CONDOMINIO.md](docs/MODELO-CONDOMINIO.md) — modelo do condomínio (v2)  
+- [docs/CONTRATOS-MORADORES.md](docs/CONTRATOS-MORADORES.md) — JSON entrada/saída por morador  
+- [docs/ESTADOS-E-FLUXOS.md](docs/ESTADOS-E-FLUXOS.md) — estados + jornada UI/API  
+- [docs/API.md](docs/API.md) — REST (`/api/demands`, health, PATCH status)  
+- [docs/exemplos/demanda-eco-maestro-v1-persistencia.json](docs/exemplos/demanda-eco-maestro-v1-persistencia.json) — exemplo completo  
+- [db/migrations/001_ecomaestro_core.sql](db/migrations/001_ecomaestro_core.sql) — schema Postgres  
 - Índice GitHub: [workbench — inspirações ecossistema](https://github.com/RivasCode-Ops/workbench/blob/main/docs/GITHUB-INSPIRACOES-ECOSSISTEMA.md)
 
 ## Repositório
