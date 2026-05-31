@@ -54,7 +54,7 @@ stateDiagram-v2
 | 4 | Clica Abrir no morador | Navega para ferramenta externa |
 | 5 | Histórico localStorage | Reabre demanda |
 
-**Não há ainda:** editar status, marcar passo concluído, sync banco.
+**Com API `:8771`:** lista demandas, export JSON, status manual, marcar run concluído, chips de portas.
 
 ### v2 (alvo — com Postgres)
 

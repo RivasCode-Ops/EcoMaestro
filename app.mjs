@@ -3,11 +3,28 @@ import { analyzeDemand } from './lib/router.mjs';
 const STORAGE = 'ecomaestro_demands_v2';
 const API_BASE = 'http://127.0.0.1:8771/api';
 
+let currentRecord = null;
+
 function esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
+function apiOnline() {
+  return location.port === '8771' || location.hostname === '127.0.0.1' && location.port === '8771';
+}
+
+async function apiFetch(path, opts = {}) {
+  try {
+    const res = await fetch(API_BASE + path, opts);
+    if (!res.ok) return { error: res.status, data: null };
+    return { error: null, data: await res.json() };
+  } catch {
+    return { error: 'network', data: null };
+  }
+}
+
 function renderReport(record, fromApi = false) {
+  currentRecord = record;
   const d = record.demand;
   const rep = record.report;
   const suffix = rep.title_suffix || '';
@@ -17,41 +34,207 @@ function renderReport(record, fromApi = false) {
     const go = a.href
       ? '<a class="go" href="' + esc(a.href) + '" target="_blank" rel="noopener">Abrir</a>'
       : '<span class="go" style="opacity:.4;font-size:.7rem">IDE</span>';
-    return '<div class="aplicador' + (a.principal ? ' principal' : '') + '">' +
-      '<span class="' + (a.principal ? 'badge' : 'badge depois') + '">' + esc(a.badge || (a.principal ? 'Comece aqui' : 'Depois')) + '</span>' +
-      '<div><h3>' + esc(a.name) + ' — ' + esc(a.label) + '</h3><p>' + esc(a.note) + '</p></div>' +
-      go + '</div>';
+    return (
+      '<div class="aplicador' +
+      (a.principal ? ' principal' : '') +
+      '">' +
+      '<span class="' +
+      (a.principal ? 'badge' : 'badge depois') +
+      '">' +
+      esc(a.badge || (a.principal ? 'Comece aqui' : 'Depois')) +
+      '</span>' +
+      '<div><h3>' +
+      esc(a.name) +
+      ' — ' +
+      esc(a.label) +
+      '</h3><p>' +
+      esc(a.note) +
+      '</p></div>' +
+      go +
+      '</div>'
+    );
   }).join('');
+
   let conf = rep.confidence_text || '';
   if (fromApi && record.id) {
     conf += (conf ? ' · ' : '') + 'Salvo na API · id: ' + record.id.slice(0, 8) + '…';
+    if (d.status) conf += ' · status: ' + d.status;
   }
   document.getElementById('confianca').textContent = conf;
   document.getElementById('relatorio').classList.add('on');
+
+  const toolbar = document.getElementById('reportToolbar');
+  const statusSel = document.getElementById('statusSelect');
+  if (record.id && apiOnline()) {
+    toolbar.hidden = false;
+    statusSel.value = d.status || 'draft';
+  } else {
+    toolbar.hidden = true;
+  }
+
+  renderRuns(record);
+}
+
+function renderRuns(record) {
+  const box = document.getElementById('runsBox');
+  const list = document.getElementById('runsList');
+  const runs = (record.runs || []).filter((r) => r.resident !== 'ecomaestro');
+  if (!runs.length || !record.id) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const canPatch = apiOnline();
+  list.innerHTML = runs
+    .map((r) => {
+      const key = r.id || r.resident;
+      const btn =
+        canPatch && r.status === 'pending'
+          ? '<button type="button" class="ghost run-done" data-key="' +
+            esc(key) +
+            '">Marcar concluído</button>'
+          : '';
+      return (
+        '<div class="run-row">' +
+        '<span class="run-status ' +
+        esc(r.status) +
+        '">' +
+        esc(r.status) +
+        '</span>' +
+        '<strong>' +
+        esc(r.resident) +
+        '</strong>' +
+        (r.is_primary ? ' <span class="hint">(Comece aqui)</span>' : '') +
+        btn +
+        '</div>'
+      );
+    })
+    .join('');
+
+  list.querySelectorAll('.run-done').forEach((btn) => {
+    btn.addEventListener('click', () => completeRun(record.id, btn.dataset.key));
+  });
+}
+
+async function completeRun(demandId, runKey) {
+  const { error, data } = await apiFetch('/demands/' + demandId + '/runs/' + runKey, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      status: 'done',
+      output_payload: { ui_note: 'Concluído manualmente no EcoMaestro', at: new Date().toISOString() }
+    })
+  });
+  if (error || !data) {
+    alert('Não foi possível atualizar a passagem. API em :8771?');
+    return;
+  }
+  renderReport(data, true);
+  loadApiDemands();
+}
+
+async function patchStatus(status) {
+  if (!currentRecord?.id) return;
+  const { error, data } = await apiFetch('/demands/' + currentRecord.id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status })
+  });
+  if (!error && data) {
+    renderReport(data, true);
+    loadApiDemands();
+  }
+}
+
+function exportJson() {
+  if (!currentRecord) return;
+  const blob = new Blob([JSON.stringify(currentRecord, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ecomaestro-' + (currentRecord.id || 'local').slice(0, 8) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function copyId() {
+  if (!currentRecord?.id) return;
+  navigator.clipboard.writeText(currentRecord.id).catch(() => {
+    prompt('ID da demanda:', currentRecord.id);
+  });
 }
 
 function renderLocal(analyzed) {
-  renderReport({
+  currentRecord = {
     demand: analyzed.demand,
-    report: {
-      ...analyzed.report,
-      title_suffix: analyzed.report.title_suffix
-    }
-  }, false);
+    report: { ...analyzed.report, title_suffix: analyzed.report.title_suffix },
+    runs: analyzed.runs
+  };
+  renderReport(currentRecord, false);
 }
 
 async function tryApi(link, desc) {
-  try {
-    const res = await fetch(API_BASE + '/demands', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ github_url: link, description: desc })
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
+  const { error, data } = await apiFetch('/demands', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ github_url: link, description: desc })
+  });
+  if (error || !data) return null;
+  return data;
+}
+
+async function loadDemandById(id) {
+  const { error, data } = await apiFetch('/demands/' + id);
+  if (!error && data) {
+    document.getElementById('linkGh').value = data.demand.github_url || '';
+    document.getElementById('desc').value = data.demand.description || '';
+    renderReport(data, true);
   }
+}
+
+async function loadApiDemands() {
+  const box = document.getElementById('apiBox');
+  const el = document.getElementById('apiList');
+  if (!apiOnline()) {
+    box.hidden = true;
+    return;
+  }
+  const { error, data } = await apiFetch('/demands');
+  if (error || !data?.demands?.length) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  el.innerHTML = data.demands
+    .map((d) => {
+      const when = d.created_at
+        ? new Date(d.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+        : '';
+      return (
+        '<div class="api-item" data-id="' +
+        esc(d.id) +
+        '"><strong>' +
+        esc(d.title) +
+        '</strong> · ' +
+        esc(d.status || 'draft') +
+        (when ? ' · ' + when : '') +
+        '</div>'
+      );
+    })
+    .join('');
+  el.querySelectorAll('.api-item').forEach((node) => {
+    node.addEventListener('click', () => loadDemandById(node.dataset.id));
+  });
+}
+
+async function loadPorts() {
+  const box = document.getElementById('portsBox');
+  if (!apiOnline()) return;
+  const { error, data } = await apiFetch('/ecosystem/ports');
+  if (error || !data?.services) return;
+  box.hidden = false;
+  box.innerHTML = data.services
+    .map((s) => '<span class="port-chip ' + (s.online ? 'on' : 'off') + '" title="' + esc(s.url) + '">' + esc(s.name) + (s.online ? ' ●' : ' ○') + '</span>')
+    .join('');
 }
 
 async function analisar() {
@@ -65,13 +248,14 @@ async function analisar() {
   const apiRecord = await tryApi(link, desc);
   if (apiRecord) {
     renderReport(apiRecord, true);
+    loadApiDemands();
   } else {
     try {
       const analyzed = analyzeDemand({ github_url: link, description: desc });
       renderLocal(analyzed);
-      document.getElementById('confianca').textContent +=
-        (document.getElementById('confianca').textContent ? ' · ' : '') +
-        'Modo local (API em :8771 offline)';
+      const conf = document.getElementById('confianca');
+      conf.textContent +=
+        (conf.textContent ? ' · ' : '') + 'Modo local (API em :8771 offline)';
     } catch (e) {
       alert(e.message);
       return;
@@ -128,7 +312,11 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
   document.getElementById('linkGh').value = '';
   document.getElementById('desc').value = '';
   document.getElementById('relatorio').classList.remove('on');
+  currentRecord = null;
 });
+document.getElementById('btnExport').addEventListener('click', exportJson);
+document.getElementById('btnCopyId').addEventListener('click', copyId);
+document.getElementById('statusSelect').addEventListener('change', (e) => patchStatus(e.target.value));
 
 (function showAutonomo() {
   const el = document.getElementById('modoAutonomo');
@@ -140,7 +328,7 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
     const span = el.querySelector('span:last-child');
     if (onApi) {
       span.innerHTML =
-        '<strong>API ativa</strong> — demandas salvas em <code>data/demands/</code>. POST /api/demands';
+        '<strong>API ativa</strong> — demandas em <code>data/demands/</code> · runs · export JSON · portas do eco';
     } else if (fileMode) {
       span.innerHTML =
         '<strong>Modo autônomo</strong> — tenta API :8771; se offline, análise local no navegador.';
@@ -149,3 +337,7 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
 })();
 
 renderHist();
+if (apiOnline()) {
+  loadApiDemands();
+  loadPorts();
+}

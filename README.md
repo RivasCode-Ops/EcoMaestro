@@ -46,10 +46,12 @@ Parar-EcoMaestro-API.bat
 ```
 
 - `POST /api/demands` — mesmo motor de análise da UI (`github_url`, `description`)
-- Persistência em `data/demands/` (JSON); Postgres opcional com `DATABASE_URL`
+- `PATCH /api/demands/:id/runs/:resident` — concluir passagem + merge de payload
+- `GET /api/ecosystem/ports` — FREEDOM, Max, Cortana online?
+- Persistência em `data/demands/` (JSON); Postgres opcional (`.env.example`)
 - Detalhes: [docs/API.md](docs/API.md)
 
-A UI em `:8771` tenta a API primeiro; no modo autônomo (`file://`) usa análise local se a API estiver offline.
+A UI em `:8771` lista demandas, exporta JSON, marca runs e mostra portas. No autônomo (`file://`) usa análise local se a API estiver offline.
 
 ## Entrada do ecossistema
 

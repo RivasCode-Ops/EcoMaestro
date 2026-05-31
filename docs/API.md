@@ -51,13 +51,31 @@ Demanda completa.
 
 ### `PATCH /api/demands/:id`
 
-Atualiza status.
+Atualiza status manualmente.
 
 ```json
 { "status": "in_progress" }
 ```
 
 Valores: `draft` | `triaged` | `in_progress` | `under_review` | `completed` | `archived`
+
+### `PATCH /api/demands/:id/runs/:runId`
+
+Atualiza passagem (`runId` = UUID da run ou `resident`, ex. `workbench`).
+
+```json
+{
+  "status": "done",
+  "output_payload": { "plan": { "workbench_kit": "20-ENTREGA-DE-PRODUTO" } }
+}
+```
+
+- Mescla `output_payload` no `payload_snapshot` (seções v1: `analysis`, `plan`, `implementation`, `audit`, …)
+- Transição automática de status da demanda: dLogica → `triaged`, workbench → `in_progress`, cursor → `under_review`, max + todas runs → `completed`
+
+### `GET /api/ecosystem/ports`
+
+Verifica se FREEDOM (`8765`), Max (`3847`), Cortana (`8787`) e geogrowth (`5190`) respondem em localhost.
 
 ---
 
@@ -71,18 +89,25 @@ curl -s -X POST http://127.0.0.1:8771/api/demands ^
 
 ---
 
-## UI
+## UI (v2)
 
-Com o servidor em `:8771`, o botão **Analisar** chama `POST /api/demands` e exibe *Salvo na API · id: …*.
+Com o servidor em `:8771`:
 
-Sem API (arquivo `.vbs` ou `:8770`), usa `lib/router.mjs` no navegador (fallback local).
+- **Analisar** → `POST /api/demands`
+- Lista **Demandas salvas (API)** — clique reabre
+- **Passagens (runs)** — *Marcar concluído* → `PATCH …/runs/:resident`
+- **Status** (select), **Exportar JSON**, **Copiar id**
+- Chips de **portas** no cabeçalho (`GET /api/ecosystem/ports`)
+
+Sem API (`.vbs` ou `:8770`), usa `lib/router.mjs` no navegador (fallback local).
 
 ---
 
 ## Postgres
 
 ```bash
-set DATABASE_URL=postgresql://user:pass@localhost:5432/ecomaestro
+copy .env.example .env
+# edite DATABASE_URL
 npm install pg
 npm start
 ```

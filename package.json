@@ -1,11 +1,12 @@
 {
   "name": "ecomaestro",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Orquestrador do condomínio ECO — API e UI local",
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "api": "node server.mjs"
+    "api": "node server.mjs",
+    "setup:pg": "npm install pg"
   },
   "optionalDependencies": {
     "pg": "^8.13.0"

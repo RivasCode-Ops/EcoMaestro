@@ -8,6 +8,8 @@ import { readFile } from 'fs/promises';
 import { join, extname } from 'path';
 import { fileURLToPath } from 'url';
 import { analyzeDemand } from './lib/router.mjs';
+import { checkEcosystemPorts } from './lib/ports.mjs';
+import { VALID_STATUSES } from './lib/status-transition.mjs';
 import * as jsonStore from './lib/storage-json.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -89,6 +91,12 @@ async function handleApi(req, res, pathname) {
     return true;
   }
 
+  if (pathname === '/api/ecosystem/ports' && req.method === 'GET') {
+    const ports = await checkEcosystemPorts();
+    send(res, 200, ports);
+    return true;
+  }
+
   if (pathname === '/api/demands' && req.method === 'GET') {
     const list = await store.listDemands(20);
     send(res, 200, { demands: list });
@@ -115,6 +123,28 @@ async function handleApi(req, res, pathname) {
     return true;
   }
 
+  const runMatch = pathname.match(/^\/api\/demands\/([^/]+)\/runs\/([^/]+)$/);
+  if (runMatch && req.method === 'PATCH') {
+    const [, id, runKey] = runMatch;
+    const body = await readBody(req);
+    if (body === null) {
+      send(res, 400, { error: 'JSON inválido' });
+      return true;
+    }
+    if (!body?.status && !body?.output_payload) {
+      send(res, 400, { error: 'Informe status e/ou output_payload' });
+      return true;
+    }
+    if (!store.patchRun) {
+      send(res, 501, { error: 'patchRun não disponível neste storage' });
+      return true;
+    }
+    const record = await store.patchRun(id, runKey, body);
+    if (!record) send(res, 404, { error: 'Demanda ou passagem não encontrada' });
+    else send(res, 200, record);
+    return true;
+  }
+
   const match = pathname.match(/^\/api\/demands\/([^/]+)$/);
   if (match) {
     const id = match[1];
@@ -128,6 +158,10 @@ async function handleApi(req, res, pathname) {
       const body = await readBody(req);
       if (!body?.status) {
         send(res, 400, { error: 'Campo status obrigatório' });
+        return true;
+      }
+      if (!VALID_STATUSES.includes(body.status)) {
+        send(res, 400, { error: 'Status inválido', allowed: VALID_STATUSES });
         return true;
       }
       const record = await store.patchDemandStatus(id, body.status);

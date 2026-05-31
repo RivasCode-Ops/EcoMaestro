@@ -57,6 +57,23 @@
     .autonomo .dot{width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 8px var(--accent2);animation:pulse 2s ease infinite}
     @keyframes pulse{50%{opacity:.35}}
     .autonomo strong{color:var(--accent2)}
+    .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:.75rem}
+    .toolbar select{padding:.4rem .55rem;border-radius:.4rem;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:.78rem}
+    .runs{margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border)}
+    .runs h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.5rem}
+    .run-row{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.82rem}
+    .run-row:last-child{border-bottom:none}
+    .run-status{font-size:.65rem;font-weight:800;text-transform:uppercase;padding:.15rem .4rem;border-radius:.25rem;background:var(--border);color:var(--muted)}
+    .run-status.done{background:rgba(94,224,184,.25);color:var(--accent2)}
+    .run-status.pending{background:rgba(124,156,255,.2);color:var(--accent)}
+    .run-status.running{background:rgba(240,192,96,.2);color:var(--warn)}
+    .ports{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem}
+    .port-chip{font-size:.68rem;padding:.2rem .45rem;border-radius:.3rem;border:1px solid var(--border);color:var(--muted)}
+    .port-chip.on{border-color:var(--accent2);color:var(--accent2)}
+    .port-chip.off{opacity:.55}
+    .api-list .api-item{font-size:.8rem;padding:.45rem 0;border-bottom:1px solid var(--border);cursor:pointer;color:var(--muted)}
+    .api-list .api-item:hover{color:var(--text)}
+    .api-item strong{color:var(--accent2);font-weight:700}
   </style>
 </head>
 <body>
@@ -69,6 +86,7 @@
         <span class="dot" aria-hidden="true"></span>
         <span><strong>Modo autônomo</strong> — app local, offline, sem servidor, sem instalar nada. Só este arquivo no navegador.</span>
       </p>
+      <div class="ports" id="portsBox" hidden aria-label="Moradores com porta local"></div>
     </header>
 
     <div class="card">
@@ -99,6 +117,28 @@
         <div class="aplicadores" id="listaAplica"></div>
       </div>
       <p class="confianca" id="confianca"></p>
+      <div class="toolbar" id="reportToolbar" hidden>
+        <label for="statusSelect" class="hint" style="margin:0">Status</label>
+        <select id="statusSelect" title="Status da demanda">
+          <option value="draft">draft</option>
+          <option value="triaged">triaged</option>
+          <option value="in_progress">in_progress</option>
+          <option value="under_review">under_review</option>
+          <option value="completed">completed</option>
+          <option value="archived">archived</option>
+        </select>
+        <button type="button" class="ghost" id="btnExport">Exportar JSON</button>
+        <button type="button" class="ghost" id="btnCopyId">Copiar id</button>
+      </div>
+      <div class="runs" id="runsBox" hidden>
+        <h2>Passagens (runs)</h2>
+        <div id="runsList"></div>
+      </div>
+    </div>
+
+    <div class="hist card" id="apiBox" hidden>
+      <h2>Demandas salvas (API)</h2>
+      <div class="api-list" id="apiList"></div>
     </div>
 
     <div class="hist" id="histBox" hidden>
