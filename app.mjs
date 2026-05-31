@@ -505,33 +505,40 @@ function renderReport(record, fromApi = false) {
   renderEcoOverlaps(rep.eco_overlaps);
   renderCursorKit(rep.cursor_kit);
   document.getElementById('listaPrecisa').innerHTML = (rep.needs || []).map((n) => '<li>' + esc(n) + '</li>').join('');
+  let stepNum = 0;
   document.getElementById('listaAplica').innerHTML = (rep.aplicadores || []).map((a) => {
+    if (a.id !== 'ecomaestro') stepNum += 1;
     const chk = a.link_check;
+    const labelAbrir = 'ABRIR — ' + a.name;
     let go;
     if (!a.href && (!chk || chk.status === 'ide')) {
-      go = '<span class="go" style="opacity:.4;font-size:.7rem" title="Abra no Cursor">Cursor</span>';
+      go = '<span class="go go-btn" title="Use o Cursor na pasta do projeto">Abrir no Cursor</span>';
     } else if (chk?.status === 'missing') {
-      go =
-        '<span class="go" style="opacity:.5;background:var(--border);color:var(--warn)" title="Arquivo ausente em _PROJETOS">Indisponível</span>';
+      go = '<span class="go go-btn" title="Arquivo ausente">Indisponível</span>';
     } else if (chk?.status === 'external') {
       go =
-        '<a class="go" href="' +
+        '<a class="go go-btn" href="' +
         esc(a.href) +
-        '" target="_blank" rel="noopener" title="App local com porta">Abrir app</a>';
+        '" target="_blank" rel="noopener">' +
+        esc(labelAbrir) +
+        '</a>';
     } else if (a.href) {
       go =
-        '<a class="go" href="' +
+        '<a class="go go-btn" href="' +
         esc(linkHref(a.href)) +
-        '" target="_blank" rel="noopener" title="' +
-        esc(chk?.label || 'Abrir') +
-        '">Abrir</a>';
+        '" target="_blank" rel="noopener">' +
+        esc(labelAbrir) +
+        '</a>';
     } else {
-      go = '<span class="go" style="opacity:.4">—</span>';
+      go = '<span class="go go-btn">—</span>';
     }
     return (
       '<div class="aplicador' +
       (a.principal ? ' principal' : '') +
       '">' +
+      '<span class="step-num" aria-hidden="true">' +
+      (stepNum || '·') +
+      '</span>' +
       '<span class="' +
       (a.principal ? 'badge' : 'badge depois') +
       '">' +
@@ -548,6 +555,22 @@ function renderReport(record, fromApi = false) {
       '</div>'
     );
   }).join('');
+
+  const guia = document.getElementById('guiaPassos');
+  const guiaTxt = document.getElementById('guiaTexto');
+  const prim = (rep.aplicadores || []).find((a) => a.principal);
+  if (guia) {
+    guia.hidden = false;
+    if (guiaTxt && prim) {
+      guiaTxt.innerHTML =
+        'Próximo passo: <strong>' +
+        esc(prim.name) +
+        '</strong> — ' +
+        esc(prim.label) +
+        '. Clique no botão <strong>1</strong> (amarelo). O Eco não executa as 3 ações sozinho.';
+    }
+  }
+  updateGuiaPassoButtons();
 
   let conf = rep.confidence_text || '';
   if (fromApi && record.id) {
@@ -697,6 +720,7 @@ async function completeRun(demandId, runKey) {
   }
   renderReport(data, true);
   loadApiDemands();
+  updateGuiaPassoButtons();
 }
 
 async function patchStatus(status) {
@@ -940,6 +964,69 @@ function renderHist() {
 document.getElementById('btnAnalisar').addEventListener('click', analisar);
 document.getElementById('btnTrabalhar').addEventListener('click', () => trabalharProjeto());
 document.getElementById('btnVerificarAdequacao')?.addEventListener('click', () => refreshOrchestration());
+
+function getPrimaryAplicador() {
+  return currentRecord?.report?.aplicadores?.find((a) => a.principal);
+}
+
+function getNextPendingRun() {
+  return (currentRecord?.runs || []).find((r) => r.resident !== 'ecomaestro' && r.status === 'pending');
+}
+
+function updateGuiaPassoButtons() {
+  const prim = getPrimaryAplicador();
+  const b1 = document.getElementById('btnAbrirPassoAgora');
+  if (b1 && prim) {
+    b1.textContent = '1 — Abrir: ' + prim.name + ' (' + (prim.label || 'guia') + ')';
+  }
+  const run = getNextPendingRun();
+  const b2 = document.getElementById('btnConcluirPassoEco');
+  if (b2) {
+    b2.textContent = run
+      ? '2 — Terminei: ' + (run.resident || 'passo') + ' (registrar)'
+      : '2 — Nenhum passo pendente no Eco';
+    b2.disabled = !run || !currentRecord?.id;
+  }
+}
+
+function abrirPassoAgora() {
+  const prim = getPrimaryAplicador();
+  if (!prim) {
+    alert('Gere o relatório primeiro: Trabalhar neste projeto.');
+    return;
+  }
+  if (!prim.href) {
+    alert('Este passo é no Cursor.\n\n1) Copiar caminho da pasta\n2) File → Open Folder\n3) Cole o prompt do workbench no chat.');
+    copiarPastaProjeto();
+    return;
+  }
+  window.open(linkHref(prim.href), '_blank');
+}
+
+function concluirPassoNoEco() {
+  const run = getNextPendingRun();
+  if (!currentRecord?.id || !run) {
+    alert('Nada a registrar agora — ou use "Marcar concluído" em Passagens (runs).');
+    return;
+  }
+  completeRun(currentRecord.id, run.id || run.resident);
+}
+
+function toggleModoFacil() {
+  const on = document.body.classList.toggle('modo-facil');
+  localStorage.setItem('ecomaestro_modo_facil', on ? '1' : '0');
+  const btn = document.getElementById('btnModoFacil');
+  if (btn) btn.textContent = on ? 'Leitura fácil: LIGADO' : 'Leitura fácil — texto e botões maiores';
+}
+
+document.getElementById('btnAbrirPassoAgora')?.addEventListener('click', abrirPassoAgora);
+document.getElementById('btnConcluirPassoEco')?.addEventListener('click', concluirPassoNoEco);
+document.getElementById('btnModoFacil')?.addEventListener('click', toggleModoFacil);
+if (localStorage.getItem('ecomaestro_modo_facil') === '1') {
+  document.body.classList.add('modo-facil');
+  const btn = document.getElementById('btnModoFacil');
+  if (btn) btn.textContent = 'Leitura fácil: LIGADO';
+}
 document.getElementById('btnCopiarPasta').addEventListener('click', () => copiarPastaProjeto());
 document.getElementById('selProjeto').addEventListener('dblclick', () => trabalharProjeto());
 document.getElementById('btnAtualizarProjetos').addEventListener('click', () => loadProjectsCatalog(true));

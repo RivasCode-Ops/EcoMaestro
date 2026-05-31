@@ -45,7 +45,7 @@
     .needs li:last-child{border-bottom:none}
     .needs li::before{content:'';position:absolute;left:0;top:.75rem;width:5px;height:5px;border-radius:50%;background:var(--warn)}
     .aplicadores{display:flex;flex-direction:column;gap:.5rem}
-    .aplicador{display:grid;grid-template-columns:auto 1fr auto;gap:.5rem .75rem;align-items:center;padding:.75rem .85rem;background:var(--surface);border-radius:.6rem;border:1px solid var(--border)}
+    .aplicador{display:grid;grid-template-columns:2.5rem auto 1fr minmax(8rem,auto);gap:.5rem .75rem;align-items:center;padding:.75rem .85rem;background:var(--surface);border-radius:.6rem;border:1px solid var(--border)}
     .aplicador.principal{border-color:var(--accent2);box-shadow:0 0 0 1px rgba(94,224,184,.15)}
     .aplicador .badge{font-size:.65rem;font-weight:800;text-transform:uppercase;padding:.2rem .45rem;border-radius:.3rem;background:var(--accent2);color:#0a1020}
     .aplicador .badge.depois{background:var(--border);color:var(--muted)}
@@ -95,6 +95,18 @@
     #ecoGateBanner{display:none;margin-bottom:1rem;padding:.75rem 1rem;border-radius:.65rem;border:1px solid rgba(240,128,128,.55);background:rgba(240,128,128,.12);font-size:.85rem}
     #ecoGateBanner.on{display:block}
     #ecoGateBanner.ok{display:block;border-color:rgba(94,224,184,.45);background:rgba(94,224,184,.08)}
+    .btn-grande{padding:.85rem 1.15rem!important;font-size:1.05rem!important;min-height:3rem;width:100%;max-width:100%;text-align:center}
+    .btns-col{display:flex;flex-direction:column;gap:.65rem;margin-top:.75rem}
+    .aplicador a.go,.aplicador .go-btn{min-height:2.75rem;padding:.65rem 1rem!important;font-size:.95rem!important;display:inline-flex;align-items:center;justify-content:center;border:2px solid #fff;background:#ffe566;color:#0a1020!important;text-decoration:none;font-weight:800}
+    .aplicador .go-btn:disabled,.aplicador span.go{opacity:.5;border-color:var(--border);background:var(--border);color:var(--muted)!important}
+    .step-num{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;border-radius:50%;background:#ffe566;color:#0a1020;font-weight:900;font-size:1rem;margin-right:.35rem}
+    body.modo-facil{font-size:1.05rem}
+    body.modo-facil .hint,body.modo-facil .confianca{font-size:.95rem;color:#d8deec}
+    body.modo-facil .aplicador h3{font-size:1.1rem}
+    body.modo-facil .aplicador p{font-size:.95rem;color:#d8deec}
+    body.modo-facil button.primary{background:#ffe566;color:#0a1020;border:2px solid #fff}
+    body.modo-facil .aplicador.principal{border-width:3px;border-color:#ffe566}
+    #guiaPassos{border-color:#ffe566;background:rgba(255,229,102,.08)}
   </style>
 </head>
 <body>
@@ -149,6 +161,18 @@
 
     <div class="card report" id="relatorio">
       <p class="projeto-nome" id="tituloProjeto"></p>
+      <div class="bloco setup-card" id="guiaPassos" hidden>
+        <h2>O que fazer agora</h2>
+        <p class="hint" id="guiaTexto">
+          O Eco <strong>monta o plano</strong> — não substitui o Cursor nem o workbench. Use os <strong>dois botões amarelos</strong> abaixo, um de cada vez.
+        </p>
+        <div class="btns-col">
+          <button type="button" class="primary btn-grande" id="btnAbrirPassoAgora">1 — Abrir o guia deste passo (substitui o link azul)</button>
+          <button type="button" class="ghost btn-grande" id="btnConcluirPassoEco">2 — Terminei este passo (registrar no Eco)</button>
+          <button type="button" class="ghost btn-grande" id="btnModoFacil">Leitura fácil — texto e botões maiores</button>
+        </div>
+        <p class="hint" style="margin-top:.5rem">Passos 3, 4… aparecem depois em &quot;Quem aplica&quot;, na ordem. Não existe uma tecla que faça tudo: cada morador é uma ferramenta diferente.</p>
+      </div>
       <div class="bloco setup-card" id="setupBox" hidden>
         <h2>Projeto novo — pasta em _PROJETOS</h2>
         <p class="hint" id="setupPath"></p>
@@ -175,7 +199,7 @@
       </div>
       <div class="bloco">
         <h2>Quem aplica no condomínio (4 portas + extras)</h2>
-        <p class="hint" style="margin:-.25rem 0 .5rem">2 = <strong>workbench</strong> (governança) · 3 = <strong>Cursor</strong> (código) — links acima para prompts/rules</p>
+        <p class="hint" style="margin:-.25rem 0 .5rem">Botões <strong>amarelos ABRIR</strong> = mesmo que o antigo link azul, só que maior. Ordem: Comece aqui → Depois.</p>
         <div class="aplicadores" id="listaAplica"></div>
       </div>
       <p class="confianca" id="confianca"></p>
