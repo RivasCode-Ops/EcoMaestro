@@ -1,9 +1,13 @@
 EcoMaestro — modo autonomo (recomendado)
 ======================================
 
-Abra SEM instalar nada, SEM servidor, SEM Cursor, SEM Node:
+Abra SEM instalar nada (lista fixa de projetos no .vbs):
 
   Duplo clique em:  EcoMaestro-Autonomo.vbs
+
+Lista completa de pastas (recomendado):
+
+  Iniciar-EcoMaestro-API.bat  →  http://127.0.0.1:8771/
   ou:              Iniciar-EcoMaestro-Autonomo.bat
   ou na raiz _PROJETOS:  Abrir-EcoMaestro.bat
 

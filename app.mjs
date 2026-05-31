@@ -13,7 +13,11 @@ function esc(s) {
 }
 
 function apiOnline() {
-  return location.port === '8771' || location.hostname === '127.0.0.1' && location.port === '8771';
+  return location.port === '8771';
+}
+
+function isFileMode() {
+  return location.protocol === 'file:';
 }
 
 function getSelectedProject() {
@@ -88,25 +92,25 @@ async function loadProjectsCatalog(refresh = false) {
   if (!sel) return;
   sel.innerHTML = '<option value="">Carregando…</option>';
 
-  if (apiOnline()) {
-    const q = refresh ? '?refresh=1' : '';
-    const { error, data } = await apiFetch('/projects' + q);
-    if (!error && data?.projects?.length) {
-      projectsCatalog = data.projects;
-      fillProjectSelect(data.projects, data.root);
-      return;
-    }
-    const hint =
-      error === 404
-        ? 'API antiga — feche e rode Iniciar-EcoMaestro-API.bat de novo'
-        : error
-          ? 'erro ' + error + ' no scan'
-          : 'resposta vazia';
-    applyFallbackProjects(hint);
+  const q = refresh ? '?refresh=1' : '';
+  const { error, data } = await apiFetch('/projects' + q);
+  if (!error && data?.projects?.length) {
+    projectsCatalog = data.projects;
+    fillProjectSelect(data.projects, data.root);
     return;
   }
 
-  applyFallbackProjects('modo autônomo — inicie API :8771 para listar todas as pastas');
+  let hint = 'lista fixa';
+  if (isFileMode()) {
+    hint = 'modo arquivo local — rode Iniciar-EcoMaestro-API.bat para as 31 pastas';
+  } else if (error === 404) {
+    hint = 'API antiga — reinicie Iniciar-EcoMaestro-API.bat';
+  } else if (error === 'network') {
+    hint = 'API parada — Iniciar-EcoMaestro-API.bat';
+  } else if (error) {
+    hint = 'erro ' + error;
+  }
+  applyFallbackProjects(hint);
 }
 
 async function apiFetch(path, opts = {}) {
@@ -578,7 +582,8 @@ document.getElementById('statusSelect').addEventListener('change', (e) => patchS
         '<strong>API ativa</strong> — demandas em <code>data/demands/</code> · runs · export JSON · portas do eco';
     } else if (fileMode) {
       span.innerHTML =
-        '<strong>Modo autônomo</strong> — tenta API :8771; se offline, análise local no navegador.';
+        '<strong>Modo autônomo</strong> — lista principal abaixo. Para <strong>todas</strong> as pastas: ' +
+        '<a href="http://127.0.0.1:8771/" style="color:var(--accent2)">Iniciar-EcoMaestro-API.bat</a> e abra :8771';
     }
   }
 })();
