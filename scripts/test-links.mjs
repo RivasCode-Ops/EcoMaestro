@@ -17,9 +17,9 @@ const paths = [
   '../workbench/Cursor-Kit/INSTALAR-NO-REPO.bat',
   '../CONSORCIO/README.md',
   '../Recuperacao_Financeira/README.md',
-  '../Simulador-Troca-Moto/index.html',
-  '../COmniWS/',
-  '../geogrowth-sync-api/',
+  '../Simulador-Troca-Moto/README.md',
+  '../COmniWS/README.md',
+  '../geogrowth-sync-api/README.md',
   '../PROMPT/CAMINHOS.md'
 ];
 
