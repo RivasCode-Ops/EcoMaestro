@@ -21,7 +21,12 @@
     .card.report{border-color:var(--accent2);background:linear-gradient(180deg,#1a2838 0%,var(--card) 100%)}
     label{display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.04em}
     .hint{font-size:.75rem;color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0;margin-top:.25rem}
-    input,textarea{width:100%;padding:.65rem .8rem;border-radius:.55rem;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:.9rem}
+    input,textarea,select{width:100%;padding:.65rem .8rem;border-radius:.55rem;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:.9rem}
+    select{cursor:pointer}
+    .row-select{display:flex;gap:.5rem;align-items:stretch}
+    .row-select select{flex:1;min-width:0}
+    .row-select button{flex-shrink:0;white-space:nowrap}
+    #linkGhView{font-size:.78rem;color:var(--muted)}
     textarea{min-height:4.5rem;resize:vertical}
     input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
     .field{margin-bottom:1rem}
@@ -87,7 +92,7 @@
     <header>
       <span class="tag">Ecossistema Coordenado de Operações</span>
       <h1>EcoMaestro</h1>
-      <p class="lead">Informe o repositório e o que você quer (projeto novo ou nova funcionalidade). O relatório diz <strong>o que precisa</strong> e <strong>quem do condomínio aplica</strong>.</p>
+      <p class="lead">Escolha a <strong>pasta em _PROJETOS</strong> e descreva o que quer fazer. O GitHub é detectado automaticamente quando o projeto tem <code>git remote</code>.</p>
       <p class="autonomo" id="modoAutonomo" hidden>
         <span class="dot" aria-hidden="true"></span>
         <span><strong>Modo autônomo</strong> — app local, offline, sem servidor, sem instalar nada. Só este arquivo no navegador.</span>
@@ -97,9 +102,16 @@
 
     <div class="card">
       <div class="field">
-        <label for="linkGh">Link do GitHub</label>
-        <input id="linkGh" type="url" inputmode="url" placeholder="https://github.com/RivasCode-Ops/FREEDOM" autocomplete="off" />
-        <p class="hint">Repositório existente. Deixe vazio só se ainda não houver código no GitHub.</p>
+        <label for="selProjeto">Projeto em c:\_PROJETOS</label>
+        <div class="row-select">
+          <select id="selProjeto" aria-label="Pasta do projeto">
+            <option value="">Carregando pastas…</option>
+          </select>
+          <button type="button" class="ghost" id="btnAtualizarProjetos" title="Reescanear pastas e remotes Git">Atualizar</button>
+        </div>
+        <p class="hint" id="projMeta">Escolha o app ou ferramenta. GitHub preenchido automaticamente.</p>
+        <input id="linkGh" type="hidden" />
+        <p class="hint" id="linkGhView" hidden></p>
       </div>
       <div class="field">
         <label for="desc">Descrição da demanda</label>

@@ -9,6 +9,7 @@ import { join, extname } from 'path';
 import { fileURLToPath } from 'url';
 import { analyzeDemand } from './lib/router.mjs';
 import { scaffoldProject } from './lib/project-scaffold.mjs';
+import { scanProjetos, resolveProject } from './lib/projetos-scan.mjs';
 import { checkEcosystemPorts } from './lib/ports.mjs';
 import { VALID_STATUSES } from './lib/status-transition.mjs';
 import * as jsonStore from './lib/storage-json.mjs';
@@ -89,6 +90,8 @@ async function serveStatic(pathname) {
 }
 
 async function handleApi(req, res, pathname) {
+  const reqUrl = new URL(req.url || '/', 'http://127.0.0.1');
+
   if (req.method === 'OPTIONS') {
     send(res, 204, '');
     return true;
@@ -108,6 +111,13 @@ async function handleApi(req, res, pathname) {
   if (pathname === '/api/demands' && req.method === 'GET') {
     const list = await store.listDemands(20);
     send(res, 200, { demands: list });
+    return true;
+  }
+
+  if (pathname === '/api/projects' && req.method === 'GET') {
+    const force = reqUrl.searchParams.get('refresh') === '1';
+    const data = await scanProjetos(force);
+    send(res, 200, data);
     return true;
   }
 
@@ -137,9 +147,21 @@ async function handleApi(req, res, pathname) {
       return true;
     }
     try {
+      let github_url = body.github_url || body.link || '';
+      const project_folder = body.project_folder || body.folder || null;
+      let folder_path = body.folder_path || null;
+      if (project_folder && project_folder !== '__new__') {
+        const resolved = await resolveProject(project_folder);
+        if (resolved) {
+          folder_path = resolved.folder_path;
+          if (!github_url && resolved.github_url) github_url = resolved.github_url;
+        }
+      }
       const analyzed = analyzeDemand({
-        github_url: body.github_url || body.link || '',
-        description: body.description || body.desc || ''
+        github_url,
+        description: body.description || body.desc || '',
+        project_folder,
+        folder_path
       });
       const record = await store.createDemand(analyzed);
       send(res, 201, record);

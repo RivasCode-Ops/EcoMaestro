@@ -18,6 +18,14 @@ Abre UI + API: http://127.0.0.1:8771/
 
 ## Endpoints
 
+### `GET /api/projects`
+
+Lista pastas em `c:\_PROJETOS` com `github_url` detectado via `git remote` (cache 30s).
+
+- `GET /api/projects?refresh=1` — força novo scan
+
+**Body de análise (POST /api/demands):** use `project_folder` (ex. `FREEDOM`) em vez de digitar GitHub; o servidor preenche o remote automaticamente.
+
 ### `GET /api/health`
 
 ```json

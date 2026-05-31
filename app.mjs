@@ -1,9 +1,12 @@
 import { analyzeDemand } from './lib/router.mjs';
+import { FALLBACK_PROJECTS } from './lib/projects-fallback.mjs';
 
 const STORAGE = 'ecomaestro_demands_v2';
+const STORAGE_PROJECT = 'ecomaestro_last_project';
 const API_BASE = 'http://127.0.0.1:8771/api';
 
 let currentRecord = null;
+let projectsCatalog = [];
 
 function esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -11,6 +14,81 @@ function esc(s) {
 
 function apiOnline() {
   return location.port === '8771' || location.hostname === '127.0.0.1' && location.port === '8771';
+}
+
+function getSelectedProject() {
+  const sel = document.getElementById('selProjeto');
+  const id = sel?.value || '';
+  if (!id || id === '__none__') return null;
+  if (id === '__new__') return { id: '__new__', name: '(projeto novo)', github_url: null, folder_path: null, kind: 'novo' };
+  return projectsCatalog.find((p) => p.id === id) || null;
+}
+
+function fillProjectSelect(projects, root) {
+  const sel = document.getElementById('selProjeto');
+  const last = localStorage.getItem(STORAGE_PROJECT) || '';
+  const prod = projects.filter((p) => p.kind === 'produto');
+  const ferr = projects.filter((p) => p.kind === 'ferramenta');
+  let html = '<option value="__new__">— Projeto novo (ainda sem pasta) —</option>';
+  if (prod.length) {
+    html += '<optgroup label="Produtos">';
+    html += prod.map((p) => '<option value="' + esc(p.id) + '">' + esc(p.label || p.name) + '</option>').join('');
+    html += '</optgroup>';
+  }
+  if (ferr.length) {
+    html += '<optgroup label="Ferramentas ECO">';
+    html += ferr.map((p) => '<option value="' + esc(p.id) + '">' + esc(p.label || p.name) + '</option>').join('');
+    html += '</optgroup>';
+  }
+  sel.innerHTML = html;
+  if (last && [...sel.options].some((o) => o.value === last)) sel.value = last;
+  else if (prod.some((p) => p.id === 'FREEDOM')) sel.value = 'FREEDOM';
+  document.getElementById('projMeta').textContent =
+    (root ? 'Raiz: ' + root + ' · ' : '') + projects.length + ' pastas · GitHub automático quando houver git';
+  onProjectSelectChange();
+}
+
+function onProjectSelectChange() {
+  const p = getSelectedProject();
+  const linkInput = document.getElementById('linkGh');
+  const linkView = document.getElementById('linkGhView');
+  if (!p || p.id === '__new__') {
+    linkInput.value = '';
+    linkView.hidden = true;
+    if (p?.id === '__new__') localStorage.setItem(STORAGE_PROJECT, '__new__');
+    return;
+  }
+  localStorage.setItem(STORAGE_PROJECT, p.id);
+  linkInput.value = p.github_url || '';
+  if (p.github_url) {
+    linkView.hidden = false;
+    linkView.textContent = 'GitHub: ' + p.github_url;
+  } else {
+    linkView.hidden = false;
+    linkView.textContent = 'Sem remote GitHub — roteamento pela pasta ' + p.name;
+  }
+}
+
+async function loadProjectsCatalog(refresh = false) {
+  const sel = document.getElementById('selProjeto');
+  sel.innerHTML = '<option value="">Carregando…</option>';
+  if (apiOnline()) {
+    const q = refresh ? '?refresh=1' : '';
+    const { error, data } = await apiFetch('/projects' + q);
+    if (!error && data?.projects) {
+      projectsCatalog = data.projects;
+      fillProjectSelect(data.projects, data.root);
+      return;
+    }
+  }
+  projectsCatalog = FALLBACK_PROJECTS.map((p) => ({
+    ...p,
+    folder_path: 'c:\\_PROJETOS\\' + p.id
+  }));
+  fillProjectSelect(projectsCatalog, 'c:\\_PROJETOS');
+  if (!apiOnline()) {
+    document.getElementById('projMeta').textContent += ' · lista fixa (inicie API :8771 para scan completo)';
+  }
 }
 
 async function apiFetch(path, opts = {}) {
@@ -283,11 +361,11 @@ function renderLocal(analyzed) {
   renderReport(currentRecord, false);
 }
 
-async function tryApi(link, desc) {
+async function tryApi(payload) {
   const { error, data } = await apiFetch('/demands', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ github_url: link, description: desc })
+    body: JSON.stringify(payload)
   });
   if (error || !data) return null;
   return data;
@@ -296,6 +374,12 @@ async function tryApi(link, desc) {
 async function loadDemandById(id) {
   const { error, data } = await apiFetch('/demands/' + id);
   if (!error && data) {
+    const folder = data.demand.project_folder || data.payload_snapshot?.context?.project_folder;
+    if (folder) {
+      const sel = document.getElementById('selProjeto');
+      if ([...sel.options].some((o) => o.value === folder)) sel.value = folder;
+      onProjectSelectChange();
+    }
     document.getElementById('linkGh').value = data.demand.github_url || '';
     document.getElementById('desc').value = data.demand.description || '';
     renderReport(data, true);
@@ -348,21 +432,33 @@ async function loadPorts() {
     .join('');
 }
 
-async function analisar() {
-  const link = document.getElementById('linkGh').value.trim();
+function buildAnalyzePayload() {
+  const proj = getSelectedProject();
   const desc = document.getElementById('desc').value.trim();
-  if (!link && !desc) {
-    alert('Informe o link do GitHub e/ou a descrição da demanda.');
+  const link = document.getElementById('linkGh').value.trim();
+  if (!proj?.id && !desc) return null;
+  return {
+    github_url: link,
+    description: desc,
+    project_folder: proj?.id && proj.id !== '__new__' ? proj.id : null,
+    folder_path: proj?.folder_path || null
+  };
+}
+
+async function analisar() {
+  const payload = buildAnalyzePayload();
+  if (!payload) {
+    alert('Escolha um projeto (ou "projeto novo") e descreva a demanda.');
     return;
   }
 
-  const apiRecord = await tryApi(link, desc);
+  const apiRecord = await tryApi(payload);
   if (apiRecord) {
     renderReport(apiRecord, true);
     loadApiDemands();
   } else {
     try {
-      const analyzed = analyzeDemand({ github_url: link, description: desc });
+      const analyzed = analyzeDemand(payload);
       renderLocal(analyzed);
       const conf = document.getElementById('confianca');
       conf.textContent +=
@@ -375,7 +471,13 @@ async function analisar() {
 
   try {
     let list = JSON.parse(localStorage.getItem(STORAGE) || '[]');
-    list.unshift({ ts: Date.now(), link, desc });
+    const proj = getSelectedProject();
+    list.unshift({
+      ts: Date.now(),
+      link: payload.github_url,
+      desc: payload.description,
+      folder: proj?.id || ''
+    });
     localStorage.setItem(STORAGE, JSON.stringify(list.slice(0, 10)));
     renderHist();
   } catch (_) {}
@@ -401,8 +503,10 @@ function renderHist() {
         esc(d.link) +
         '" data-desc="' +
         esc(d.desc) +
+        '" data-folder="' +
+        esc(d.folder || '') +
         '">' +
-        esc((d.link || d.desc || '').slice(0, 50)) +
+        esc((d.folder ? d.folder + ' · ' : '') + (d.desc || d.link || '').slice(0, 48)) +
         ' · ' +
         when +
         '</div>'
@@ -411,6 +515,13 @@ function renderHist() {
     .join('');
   el.querySelectorAll('.hist-item').forEach((node) => {
     node.addEventListener('click', () => {
+      if (node.dataset.folder) {
+        const sel = document.getElementById('selProjeto');
+        if ([...sel.options].some((o) => o.value === node.dataset.folder)) {
+          sel.value = node.dataset.folder;
+          onProjectSelectChange();
+        }
+      }
       document.getElementById('linkGh').value = node.dataset.link || '';
       document.getElementById('desc').value = node.dataset.desc || '';
       analisar();
@@ -419,9 +530,13 @@ function renderHist() {
 }
 
 document.getElementById('btnAnalisar').addEventListener('click', analisar);
+document.getElementById('btnAtualizarProjetos').addEventListener('click', () => loadProjectsCatalog(true));
+document.getElementById('selProjeto').addEventListener('change', onProjectSelectChange);
 document.getElementById('btnLimpar').addEventListener('click', () => {
-  document.getElementById('linkGh').value = '';
   document.getElementById('desc').value = '';
+  const last = localStorage.getItem(STORAGE_PROJECT);
+  if (last) document.getElementById('selProjeto').value = last;
+  onProjectSelectChange();
   document.getElementById('relatorio').classList.remove('on');
   document.getElementById('setupBox').hidden = true;
   document.getElementById('cursorKitBox').hidden = true;
@@ -451,6 +566,7 @@ document.getElementById('statusSelect').addEventListener('change', (e) => patchS
 })();
 
 renderHist();
+loadProjectsCatalog(false);
 if (apiOnline()) {
   loadApiDemands();
   loadPorts();
