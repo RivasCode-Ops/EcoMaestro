@@ -42,6 +42,12 @@
 | `comercial` | ARBILOCAL ou Cortana → workbench |
 | `correcao_rapida` | workbench `50-CORRECAO-RAPIDA` → Cursor |
 
+## Interface (3 blocos)
+
+1. **Link do GitHub** — repositório existente (opcional se ainda não houver código).
+2. **Descrição** — projeto novo ou nova funcionalidade (e outros pedidos).
+3. **Relatório** — *O que precisa* + *Quem aplica no condomínio* (com **Comece aqui**).
+
 ## Persistência
 
-Demandas salvas em `localStorage` (`ecomaestro_demands_v1`) — só no seu navegador.
+Demandas salvas em `localStorage` (`ecomaestro_demands_v2`) — só no seu navegador.

@@ -2,7 +2,12 @@
 
 **Maestro do condomínio ECO** — *Ecossistema Coordenado de Operações* (`c:\_PROJETOS`).
 
-Você informa **nome do projeto** + **descrição do modelo** ou **link** (GitHub, pasta, URL local). O EcoMaestro **roteia** quem entrega a demanda no condomínio de apps (dLogica, workbench, Cursor, Max, Cortana e complementos).
+Você informa:
+
+1. **Link do GitHub** (repositório existente)  
+2. **Descrição** — projeto novo ou nova funcionalidade  
+
+O **relatório** responde **o que precisa** e **quem do condomínio aplica** (com destaque *Comece aqui*).
 
 ## Nome e papel
 
