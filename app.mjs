@@ -23,6 +23,30 @@ async function apiFetch(path, opts = {}) {
   }
 }
 
+function renderEcoOverlaps(list) {
+  const box = document.getElementById('overlapsBox');
+  const el = document.getElementById('overlapsList');
+  if (!list?.length) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  el.innerHTML = list
+    .map(
+      (o) =>
+        '<p style="margin:.35rem 0;font-size:.82rem"><strong>' +
+        esc(o.label) +
+        '</strong> — ' +
+        esc(o.role) +
+        '<br><span class="hint">' +
+        esc(o.action) +
+        '</span> ' +
+        (o.href ? '<a class="go" href="' + esc(o.href) + '" target="_blank" rel="noopener">Abrir</a>' : '') +
+        '</p>'
+    )
+    .join('');
+}
+
 function renderCursorKit(kit) {
   const box = document.getElementById('cursorKitBox');
   if (!kit) {
@@ -108,6 +132,7 @@ function renderReport(record, fromApi = false) {
   const suffix = rep.title_suffix || '';
   document.getElementById('tituloProjeto').textContent = d.title + suffix;
   renderSetup(rep.setup, d.description);
+  renderEcoOverlaps(rep.eco_overlaps);
   renderCursorKit(rep.cursor_kit);
   document.getElementById('listaPrecisa').innerHTML = (rep.needs || []).map((n) => '<li>' + esc(n) + '</li>').join('');
   document.getElementById('listaAplica').innerHTML = (rep.aplicadores || []).map((a) => {
@@ -250,7 +275,8 @@ function renderLocal(analyzed) {
       ...analyzed.report,
       title_suffix: analyzed.report.title_suffix,
       setup: analyzed.report.setup,
-      cursor_kit: analyzed.report.cursor_kit
+      cursor_kit: analyzed.report.cursor_kit,
+      eco_overlaps: analyzed.report.eco_overlaps
     },
     runs: analyzed.runs
   };
@@ -399,6 +425,7 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
   document.getElementById('relatorio').classList.remove('on');
   document.getElementById('setupBox').hidden = true;
   document.getElementById('cursorKitBox').hidden = true;
+  document.getElementById('overlapsBox').hidden = true;
   currentRecord = null;
 });
 document.getElementById('btnExport').addEventListener('click', exportJson);

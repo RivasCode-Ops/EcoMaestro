@@ -68,6 +68,8 @@ Use o EcoMaestro **antes** do fluxo fixo de 4 portas quando a demanda ainda não
 - [docs/CONTRATOS-MORADORES.md](docs/CONTRATOS-MORADORES.md) — JSON entrada/saída por morador  
 - [docs/ESTADOS-E-FLUXOS.md](docs/ESTADOS-E-FLUXOS.md) — estados + jornada UI/API  
 - [docs/API.md](docs/API.md) — REST (`/api/demands`, health, PATCH status)  
+- [docs/ECO-APPS-E-SOBREPOSICOES.md](docs/ECO-APPS-E-SOBREPOSICOES.md) — PROMPT, Cursor-Kit, apps fora das 4 portas  
+- [workbench/Cursor-Kit](../workbench/Cursor-Kit/README.md) — rules genéricas `.cursor` para qualquer repo  
 - [docs/exemplos/demanda-eco-maestro-v1-persistencia.json](docs/exemplos/demanda-eco-maestro-v1-persistencia.json) — exemplo completo  
 - [db/migrations/001_ecomaestro_core.sql](db/migrations/001_ecomaestro_core.sql) — schema Postgres  
 - Índice GitHub: [workbench — inspirações ecossistema](https://github.com/RivasCode-Ops/workbench/blob/main/docs/GITHUB-INSPIRACOES-ECOSSISTEMA.md)
