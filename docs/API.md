@@ -73,6 +73,16 @@ Atualiza passagem (`runId` = UUID da run ou `resident`, ex. `workbench`).
 - Mescla `output_payload` no `payload_snapshot` (seções v1: `analysis`, `plan`, `implementation`, `audit`, …)
 - Transição automática de status da demanda: dLogica → `triaged`, workbench → `in_progress`, cursor → `under_review`, max + todas runs → `completed`
 
+### `POST /api/projects/scaffold`
+
+Cria pasta do **projeto novo** em `c:\_PROJETOS\{slug}` com `README.md` inicial.
+
+```json
+{ "slug": "MeuAppFire", "description": "projeto novo — app FIRE família" }
+```
+
+Se a pasta já existir, retorna `200` com `already_existed: true`.
+
 ### `GET /api/ecosystem/ports`
 
 Verifica se FREEDOM (`8765`), Max (`3847`), Cortana (`8787`) e geogrowth (`5190`) respondem em localhost.

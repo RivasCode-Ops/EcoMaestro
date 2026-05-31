@@ -8,6 +8,7 @@ import { readFile } from 'fs/promises';
 import { join, extname } from 'path';
 import { fileURLToPath } from 'url';
 import { analyzeDemand } from './lib/router.mjs';
+import { scaffoldProject } from './lib/project-scaffold.mjs';
 import { checkEcosystemPorts } from './lib/ports.mjs';
 import { VALID_STATUSES } from './lib/status-transition.mjs';
 import * as jsonStore from './lib/storage-json.mjs';
@@ -45,13 +46,20 @@ const MIME = {
 };
 
 function send(res, status, body, type = 'application/json; charset=utf-8') {
-  res.writeHead(status, {
+  const headers = {
     'Content-Type': type,
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type'
-  });
-  res.end(typeof body === 'string' ? body : JSON.stringify(body));
+  };
+  res.writeHead(status, headers);
+  if (Buffer.isBuffer(body)) {
+    res.end(body);
+  } else if (typeof body === 'string') {
+    res.end(body);
+  } else {
+    res.end(JSON.stringify(body));
+  }
 }
 
 async function readBody(req) {
@@ -100,6 +108,25 @@ async function handleApi(req, res, pathname) {
   if (pathname === '/api/demands' && req.method === 'GET') {
     const list = await store.listDemands(20);
     send(res, 200, { demands: list });
+    return true;
+  }
+
+  if (pathname === '/api/projects/scaffold' && req.method === 'POST') {
+    const body = await readBody(req);
+    if (body === null) {
+      send(res, 400, { error: 'JSON inválido' });
+      return true;
+    }
+    try {
+      const result = await scaffoldProject({
+        slug: body.slug || body.name,
+        description: body.description || ''
+      });
+      send(res, result.created ? 201 : 200, result);
+    } catch (e) {
+      const code = e.code === 'VALIDATION' ? 400 : 500;
+      send(res, code, { error: e.message });
+    }
     return true;
   }
 

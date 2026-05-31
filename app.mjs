@@ -23,12 +23,65 @@ async function apiFetch(path, opts = {}) {
   }
 }
 
+function renderSetup(setup, description) {
+  const box = document.getElementById('setupBox');
+  const msg = document.getElementById('setupMsg');
+  const pathEl = document.getElementById('setupPath');
+  const linkPasta = document.getElementById('linkAbrirPasta');
+  if (!setup) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  pathEl.textContent =
+    'Pasta sugerida: ' + setup.folder_path + ' — edite o nome no botão se precisar de outro slug.';
+  document.getElementById('linkTutorial').href = setup.tutorial_href;
+  document.getElementById('linkOrquestrador').href = setup.orquestrador_href;
+  linkPasta.href = setup.explorer_href;
+  linkPasta.hidden = false;
+  msg.textContent = '';
+  const btn = document.getElementById('btnCriarPasta');
+  btn.dataset.slug = setup.suggested_slug;
+  btn.dataset.desc = description || '';
+  btn.onclick = () => criarPasta(setup.suggested_slug, description);
+}
+
+async function criarPasta(slug, description) {
+  const nome = prompt('Nome da pasta em c:\\_PROJETOS:', slug || 'NovoProjeto');
+  if (!nome) return;
+  const msg = document.getElementById('setupMsg');
+  if (apiOnline()) {
+    const { error, data } = await apiFetch('/projects/scaffold', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: nome, description })
+    });
+    if (error || !data?.ok) {
+      msg.textContent = 'Erro ao criar pasta. Tente Criar-pasta-em-PROJETOS.bat ' + nome;
+      return;
+    }
+    msg.textContent = data.created
+      ? 'Pasta criada com README.md.'
+      : 'Pasta já existia — README mantido se já houver.';
+    document.getElementById('linkAbrirPasta').href = data.explorer_href;
+    window.open(data.explorer_href, '_blank');
+    return;
+  }
+  msg.textContent =
+    'Modo offline: execute Criar-pasta-em-PROJETOS.bat "' +
+    nome +
+    '" ou crie manualmente em c:\\_PROJETOS\\' +
+    nome;
+  window.open('file:///C:/_PROJETOS/', '_blank');
+}
+
 function renderReport(record, fromApi = false) {
   currentRecord = record;
   const d = record.demand;
   const rep = record.report;
   const suffix = rep.title_suffix || '';
   document.getElementById('tituloProjeto').textContent = d.title + suffix;
+  renderSetup(rep.setup, d.description);
   document.getElementById('listaPrecisa').innerHTML = (rep.needs || []).map((n) => '<li>' + esc(n) + '</li>').join('');
   document.getElementById('listaAplica').innerHTML = (rep.aplicadores || []).map((a) => {
     const go = a.href
@@ -166,7 +219,11 @@ function copyId() {
 function renderLocal(analyzed) {
   currentRecord = {
     demand: analyzed.demand,
-    report: { ...analyzed.report, title_suffix: analyzed.report.title_suffix },
+    report: {
+      ...analyzed.report,
+      title_suffix: analyzed.report.title_suffix,
+      setup: analyzed.report.setup
+    },
     runs: analyzed.runs
   };
   renderReport(currentRecord, false);
@@ -312,6 +369,7 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
   document.getElementById('linkGh').value = '';
   document.getElementById('desc').value = '';
   document.getElementById('relatorio').classList.remove('on');
+  document.getElementById('setupBox').hidden = true;
   currentRecord = null;
 });
 document.getElementById('btnExport').addEventListener('click', exportJson);

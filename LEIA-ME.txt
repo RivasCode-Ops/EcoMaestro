@@ -8,8 +8,14 @@ Abra SEM instalar nada, SEM servidor, SEM Cursor, SEM Node:
   ou na raiz _PROJETOS:  Abrir-EcoMaestro.bat
 
 Funciona offline. O relatorio (o que precisa + quem aplica) roda no navegador.
+Projeto novo: bloco "pasta em _PROJETOS" + Criar-pasta-em-PROJETOS.bat
 
-Opcional (com servidor na porta 8770):
+API + UI + salvar demandas (porta 8771) — recomendado:
+  Iniciar-EcoMaestro-API.bat
+  Parar-EcoMaestro-API.bat
+  Criar-atalho-Area-de-Trabalho.bat  — atalho na Area de Trabalho
+
+Opcional (servidor estatico na porta 8770):
   Iniciar-EcoMaestro.bat
   Parar-EcoMaestro.bat
 
