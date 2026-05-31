@@ -113,10 +113,44 @@ function fillProjectSelect(projects, root) {
   window.__ecoMaestroProjectsReady = true;
 }
 
+function projectFolderPath(p) {
+  return p?.folder_path || (p?.id ? projectsRoot + '\\' + p.id : '');
+}
+
+function projectDocHref(p) {
+  if (!p?.id || p.id === '__new__') return null;
+  const candidates = ['AGENTS.md', 'README.md', 'docs/README.md', 'LEIA-ME.txt'];
+  for (const file of candidates) {
+    const href = '/p/' + encodeURIComponent(p.id) + '/' + file.split('/').map(encodeURIComponent).join('/');
+    return linkHref(href);
+  }
+  return linkHref('/p/' + encodeURIComponent(p.id) + '/');
+}
+
+function updateProjectActions(p) {
+  const box = document.getElementById('projActions');
+  const btn = document.getElementById('btnTrabalhar');
+  const hint = document.getElementById('projAcaoHint');
+  const linkDoc = document.getElementById('linkProjDoc');
+  const ok = p?.id && p.id !== '__new__';
+  if (box) box.hidden = !ok;
+  if (btn) btn.disabled = !ok;
+  if (hint) {
+    hint.innerHTML = ok
+      ? 'Próximo passo: clique em <strong>Trabalhar neste projeto</strong> (ou duplo clique na lista). O Eco monta o plano; o código roda no <strong>Cursor</strong> na pasta indicada acima.'
+      : 'Para projeto novo, use <strong>+ Criar projeto novo</strong> e depois <strong>Analisar demanda</strong>.';
+  }
+  if (linkDoc && ok) {
+    linkDoc.href = projectDocHref(p);
+    linkDoc.textContent = 'Abrir guia (' + p.name + ')';
+  }
+}
+
 function onProjectSelectChange() {
   const p = getSelectedProject();
   const linkInput = document.getElementById('linkGh');
   const linkView = document.getElementById('linkGhView');
+  updateProjectActions(p);
   if (!p || p.id === '__new__') {
     linkInput.value = '';
     linkView.hidden = true;
@@ -125,12 +159,48 @@ function onProjectSelectChange() {
   }
   localStorage.setItem(STORAGE_PROJECT, p.id);
   linkInput.value = p.github_url || '';
+  const pasta = projectFolderPath(p);
   if (p.github_url) {
     linkView.hidden = false;
-    linkView.textContent = 'GitHub: ' + p.github_url;
+    linkView.textContent = 'GitHub: ' + p.github_url + (pasta ? ' · Pasta: ' + pasta : '');
   } else {
     linkView.hidden = false;
-    linkView.textContent = 'Sem remote GitHub — roteamento pela pasta ' + p.name;
+    linkView.textContent = 'Pasta de trabalho: ' + pasta + ' — abra no Cursor (File → Open Folder)';
+  }
+}
+
+async function trabalharProjeto() {
+  const proj = getSelectedProject();
+  if (!proj?.id || proj.id === '__new__') {
+    alert('Escolha um app na lista (ex. XAXA), não "criar projeto novo".');
+    return;
+  }
+  const descEl = document.getElementById('desc');
+  if (!descEl.value.trim()) {
+    descEl.value =
+      'Evoluir o projeto ' +
+      proj.name +
+      ' — revisar estado atual, próximo passo no workbench e implementação no Cursor.';
+  }
+  await analisar();
+  const rel = document.getElementById('relatorio');
+  if (rel?.classList.contains('on')) rel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function copiarPastaProjeto() {
+  const proj = getSelectedProject();
+  const path = projectFolderPath(proj);
+  if (!path) return;
+  try {
+    await navigator.clipboard.writeText(path);
+    const meta = document.getElementById('projMeta');
+    const prev = meta.textContent;
+    meta.textContent = 'Caminho copiado: ' + path + ' — cole no Cursor (Open Folder)';
+    setTimeout(() => {
+      if (meta.textContent.startsWith('Caminho copiado')) meta.textContent = prev;
+    }, 4000);
+  } catch {
+    prompt('Copie o caminho da pasta:', path);
   }
 }
 
@@ -653,6 +723,9 @@ function renderHist() {
 }
 
 document.getElementById('btnAnalisar').addEventListener('click', analisar);
+document.getElementById('btnTrabalhar').addEventListener('click', () => trabalharProjeto());
+document.getElementById('btnCopiarPasta').addEventListener('click', () => copiarPastaProjeto());
+document.getElementById('selProjeto').addEventListener('dblclick', () => trabalharProjeto());
 document.getElementById('btnAtualizarProjetos').addEventListener('click', () => loadProjectsCatalog(true));
 document.getElementById('filtroProjeto')?.addEventListener('input', () => {
   if (projectsCatalog.length) fillProjectSelect(projectsCatalog, projectsRoot);

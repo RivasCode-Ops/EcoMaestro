@@ -85,6 +85,10 @@
     .kit-links{gap:.35rem}
     .kit-links .go{font-size:.72rem;padding:.3rem .55rem}
     .kit-links .go.kit-start{box-shadow:0 0 0 1px var(--accent2)}
+    .proj-actions{margin-top:.65rem;align-items:center}
+    .proj-actions .go{display:inline-block;padding:.45rem .75rem;border-radius:.45rem;background:var(--accent);color:#0a1020;font-weight:800;font-size:.78rem;text-decoration:none}
+    .proj-actions .go:hover{filter:brightness(1.08)}
+    #btnTrabalhar:disabled{opacity:.45;cursor:not-allowed}
   </style>
 </head>
 <body>
@@ -113,6 +117,12 @@
         <p class="hint" id="projMeta">Escolha <strong>seu app</strong> (FREEDOM, geogrowth…). Use <strong>http://127.0.0.1:8771/</strong> para ver todas as pastas.</p>
         <input id="linkGh" type="hidden" />
         <p class="hint" id="linkGhView" hidden></p>
+        <p class="hint" id="projAcaoHint">Selecionar na lista <strong>não inicia</strong> o trabalho — use o botão abaixo.</p>
+        <div class="btns proj-actions" id="projActions" hidden>
+          <button type="button" class="primary" id="btnTrabalhar" title="Monta o plano do condomínio para este app">Trabalhar neste projeto</button>
+          <a class="go" id="linkProjDoc" href="#" target="_blank" rel="noopener">Abrir guia do projeto</a>
+          <button type="button" class="ghost" id="btnCopiarPasta" title="Copiar c:\_PROJETOS\Nome">Copiar caminho da pasta</button>
+        </div>
       </div>
       <div class="field">
         <label for="desc">Descrição da demanda</label>
@@ -120,7 +130,7 @@
         <p class="hint">Use para <strong>projeto novo</strong> ou <strong>nova funcionalidade</strong> (e qualquer outro pedido).</p>
       </div>
       <div class="btns">
-        <button type="button" class="primary" id="btnAnalisar">Analisar demanda</button>
+        <button type="button" class="ghost" id="btnAnalisar" title="Mesmo que Trabalhar, mas exige descrição preenchida">Analisar demanda (com texto)</button>
         <button type="button" class="ghost" id="btnLimpar">Limpar</button>
       </div>
     </div>
